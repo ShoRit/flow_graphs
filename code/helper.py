@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pprint import pprint
 import json, pickle, time, os, random, pathlib, dill
+import regex as re
 
 import torch
 import torch.nn as nn
@@ -38,6 +39,9 @@ def load_deprels(file='../data/enh_dep_rel.txt', enhanced=False):
         if rel_name not in dep_dict:
             dep_dict[rel_name]      = len(dep_dict)
             
+    if 'STAR' not in dep_dict:
+        dep_dict['STAR']                = len(dep_dict)
+    
     return dep_dict
     
 def load_pickle(filename):
