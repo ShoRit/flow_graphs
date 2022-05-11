@@ -1,8 +1,11 @@
+import ast
 import json
 import os
 import pickle
 
 from amrlib import load_stog_model
+from amrlib.graph_processing.annotator import add_lemmas
+from amrlib.alignments.rbw_aligner import RBWAligner
 from fire import Fire
 import penman
 import spacy
@@ -19,6 +22,12 @@ def load_corpus(corpus_name):
         data = json.load(f)
     return [item["text"] for item in data]
 
+def align_graph(graph):
+    lemma_graph = add_lemmas(penman.encode(graph), snt_key="snt")
+    aligner = RBWAligner.from_penman_w_json(lemma_graph)
+    aligned_graph = aligner.get_penman_graph()
+    return aligned_graph
+
 
 def sentencizer(text):
     return [sent.text for sent in spacy_fn(text).sents]
@@ -31,7 +40,13 @@ def annotate_corpus(corpus_name, amr_model):
 
     for segmented_batch in segmented:
         graphs = amr_model.parse_sents(segmented_batch, disable_progress=False, return_penman=True)
-        all_graphs.append(graphs)
+        aligned_graphs = [align_graph(graph) for graph in graphs]
+        all_graphs.append([{
+            "graph": graph,
+            "tokens": ast.literal_eval(graph.metadata["tokens"]),
+            "text": text,
+            } 
+            for text, graph in zip(segmented_batch, aligned_graphs)])
         all_texts.append([penman.encode(graph, top=graph.top) for graph in graphs])
     with open(os.path.join(DATASET_BASE_PATH, corpus_name, "amr.pkl"), "wb") as f:
         pickle.dump(all_graphs, f)
