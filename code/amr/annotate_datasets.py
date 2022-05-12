@@ -23,14 +23,19 @@ def load_corpus(corpus_name):
     return [item["text"] for item in data]
 
 def align_graph(graph):
-    lemma_graph = add_lemmas(penman.encode(graph), snt_key="snt")
+    try:
+        lemma_graph = add_lemmas(penman.encode(graph), snt_key="snt")
+    except penman.exceptions.DecodeError as e:
+        return None
+    if 'amr-empty' in graph.triples[0]:
+        return None
     aligner = RBWAligner.from_penman_w_json(lemma_graph)
     aligned_graph = aligner.get_penman_graph()
     return aligned_graph
 
 
 def sentencizer(text):
-    return [sent.text for sent in spacy_fn(text).sents]
+    return [sent.text.replace("\n", " ") for sent in spacy_fn(text).sents]
 
 def annotate_corpus(corpus_name, amr_model):
     instances = load_corpus(corpus_name)
@@ -43,7 +48,7 @@ def annotate_corpus(corpus_name, amr_model):
         aligned_graphs = [align_graph(graph) for graph in graphs]
         all_graphs.append([{
             "graph": graph,
-            "tokens": ast.literal_eval(graph.metadata["tokens"]),
+            "tokens": ast.literal_eval(graph.metadata["tokens"]) if graph is not None else None,
             "text": text,
             } 
             for text, graph in zip(segmented_batch, aligned_graphs)])
@@ -62,6 +67,7 @@ def annotate_corpora(model_path, device=None, batch_size=4):
         try:
             annotate_corpus(dataset, amr_model)
         except:
+            print(f"Failed to annotate {dataset}")
             pass
     
 
