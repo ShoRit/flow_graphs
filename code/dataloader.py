@@ -1,8 +1,12 @@
 import imp
-from helper import *
-from transformers import BertTokenizer, BertModel
+from collections import defaultdict
+
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 from torch_geometric.data import Data
+from transformers import BertTokenizer, BertModel
+
+from helper import *
+
 
 
 class ZSBertRelDataset(Dataset):
@@ -73,3 +77,52 @@ class ZSBert_RGCN_RelDataset(Dataset):
 
 		return (tokens, segments, marked_1, marked_2, desc_emb, label, dep_data)
 
+class ZSBert_RGCN_AMR_Dataset(Dataset):
+	def __init__(self, annotated_instances, tokenizer):
+		self.annotated_instances = annotated_instances
+		self.tokenizer = tokenizer
+
+	def __getitem__(self, idx):
+		instance = self.annotated_instances[idx]
+		
+		node_to_idx = {"head_node": 0}
+		tokenized_input_ids = [101]
+		edges = []
+		edge_types = []
+		node_to_token = defaultdict(list)
+
+		for sentence in instance:
+			aligned_graph = sentence["graph"]
+			tokens = sentence["tokens"]
+
+			if aligned_graph is None:
+				for (s, r, t) in aligned_graph.triples:
+					if s not in node_to_idx:
+						node_to_idx[s] = len(node_to_idx)
+					if t not in node_to_idx:
+						node_to_idx[t] = len(node_to_idx)
+				token_to_node = defaultdict(list)
+
+				alignments = penman.surface.alignments(aligned_graph)
+				for triple in aligned_graph.triples:
+					s,r,t = triple 
+					if triple in alignments:
+						for token_idx in alignments[triple].indices:
+							token_to_node[token_idx].append(node_to_idx[s])
+							token_to_node[token_idx].append(node_to_idx[t])
+					edges.append((node_to_idx[s], node_to_idx[t]))
+					edge_types.append(edge_to_type[r])
+				# add an edge linking to the top node across sentences
+				edges.append((0, node_to_idx[aligned_graph.top]))
+
+			for i, token in enumerate(tokens):
+				tokenized = tokenizer(token, add_special_tokens=False)["input_ids"]
+				current_idx = len(tokenized_input_ids)
+				tokenized_input_ids.extend(tokenized)
+				if i in token_to_node:
+					node_indices= token_to_node[i]
+					for node_idx in node_indices:
+						node_to_token[node_idx].extend(range(current_idx, current_idx + len(tokenized)))
+
+		tokenized_input_ids.append(102)
+		node_to_token = dict(node_to_token)
