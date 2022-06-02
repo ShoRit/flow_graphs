@@ -1520,6 +1520,10 @@ def create_datafield(
     omit_rels=[],
     dep_flag=True,
 ):
+
+    # STUFF LOADING
+    ##################################################
+
     from transformers import AutoTokenizer, AutoModel
 
     tokenizer = AutoTokenizer.from_pretrained(bert_model)
@@ -1549,6 +1553,8 @@ def create_datafield(
             interdict = ddict(list)
             sents = [x for x in nlp(doc["text"]).sents]
 
+            # CREATING A SPAN-RELATION MAP
+            ##################################################
             for rel in doc["rels"]:
                 start_span = min(rel["arg1_start"], rel["arg2_start"])
                 end_span = max(rel["arg1_end"], rel["arg2_end"])
@@ -1564,7 +1570,13 @@ def create_datafield(
                     rel["arg_label"],
                 )
 
+
+            # CREATING A SPAN-SENTENCE MAP
+            ##################################################
+
+            # sent_idxs: token indices of where each sentence begins
             sent_idxs = [0] + [max([tok.idx for tok in sent]) for sent in sents]
+            # sent_ints: token intervals of sentences in the documents
             sent_ints = [
                 (sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)
             ]
@@ -1581,6 +1593,10 @@ def create_datafield(
 
             ### creates each separate instance for each relation.
 
+
+            # WITH EACH SPAN/SENTENCE/RELATION
+            # MAPPING ENTITIES/SENTENCES TO TOKENS
+            ##################################################
             for rel_int in interdict:
                 (
                     arg1_start,
@@ -1616,23 +1632,6 @@ def create_datafield(
                     if sent_start is None:
                         sent_start = sent.start_char
                     sent_end = sent.end_char
-                    # if   text_tokenizer == 'scispacy':
-                    # sent_toks = sent
-
-                    # for tok in sent_toks:
-                    # 	# if   text_tokenizer == 'scispacy':
-                    # 	start, end = tok.idx, tok.idx + len(tok)
-                    # 	bert_toks = tokenizer.encode_plus(tok.text,  add_special_tokens=False)['input_ids']
-                    # 	if len(bert_toks) != 0:
-                    # 		tokens    += bert_toks
-                    # 		tok_range.append((start-sent_start , end-sent_start))
-                    # 		org_toks.append(tok.text)
-
-                    # 	if arg1_ann_map.contains(start,end):	arg1_tokens += [1]*len(bert_toks)
-                    # 	else:									arg1_tokens += [0]*len(bert_toks)
-
-                    # 	if arg2_ann_map.contains(start,end): 	arg2_tokens += [1]*len(bert_toks)
-                    # 	else:								 	arg2_tokens += [0]*len(bert_toks)
 
                 sent_str = doc["text"][sent_start:sent_end]
                 ## obtained the sentence boundary for the two relations in question.
@@ -1648,7 +1647,6 @@ def create_datafield(
                 )
                 arg1_ann_map[e1_start:e1_end] = (e1_start, e1_end, arg1_label)
                 arg2_ann_map[e2_start:e2_end] = (e2_start, e2_end, arg2_label)
-                # bw_arg_ann_map[min(e1_start, e2_start): max(e2_end, e1_end)]
 
                 sent_toks = tokenizer(
                     sent_str, return_offsets_mapping=True, max_length=512
@@ -1682,6 +1680,11 @@ def create_datafield(
                 node_mask_dict = {}
                 edge_arr = []
                 dep_arr = []
+
+
+                # DEPENDENCY PARSE, MAP WORDS TO ENTITIES
+                ##################################################
+
 
                 # Specifically for the root that is attached to the main verb
                 # STAR NODE
@@ -1722,6 +1725,10 @@ def create_datafield(
 
                 last_six, last_eix = 1, 1
 
+
+                # CONSTRUCT GRAPH FROM DEPENDENCIES
+                ##################################################
+
                 for elem in dep_arr:
                     (
                         start_idx,
@@ -1757,6 +1764,8 @@ def create_datafield(
 
                     # if 	idx == len(tok_range) -2		: end_tok_idx = idx+1
                     # if 	idx == len(tok_range) -1		: end_tok_idx = idx+1
+
+                    
                     if start_tok_idx == 1 and end_tok_idx == 1:
                         start_tok_idx, end_tok_idx = last_six, last_eix
                     node_idx_dict[start_idx] = (start_tok_idx, end_tok_idx)
@@ -1782,6 +1791,7 @@ def create_datafield(
                     node_idx_dict[(sent_num, 0)] = (min_tok_idx, max_tok_idx)
                     node_mask_dict[(sent_num, 0)] = 0
 
+                ## Setting up masks for each node??
                 x, edge_index, edge_type, n1_mask, n2_mask = [], [[], []], [], [], []
                 for node in node_dict:
                     six, eix = node_idx_dict[node]
@@ -1810,12 +1820,14 @@ def create_datafield(
                         n1_mask.append(1)
                         n2_mask.append(1)
 
+                ## Setting up the edge arrays
                 for edge in edge_arr:
                     n1, n2, rel_idx = edge
                     edge_index[0].append(node_dict[n1])
                     edge_index[1].append(node_dict[n2])
                     edge_type.append(rel_idx)
 
+                ## Add the top node in 
                 for sent_num in range(num_sents):
                     edge_index[0].append(node_dict[(sent_num, 0)])
                     edge_index[1].append(node_dict[(-1, -1)])
@@ -1828,6 +1840,7 @@ def create_datafield(
 
                     pdb.set_trace()
 
+                ## Set up the Data instance for the relation
                 try:
                     x, edge_index, edge_type, n1_mask, n2_mask = (
                         torch.stack(x, dim=0),
@@ -1849,6 +1862,10 @@ def create_datafield(
                     pdb.set_trace()
 
                 # import pdb; pdb.set_trace()
+
+                # AMR Parsing/construction
+                ################################################## 
+
 
                 data[split]["rels"].append(
                     {
