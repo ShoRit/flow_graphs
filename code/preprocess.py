@@ -1,8 +1,13 @@
+from amrlib import load_stog_model
+import penman
+import spacy
+import stanza
+from torch.nn.utils.rnn import pad_sequence
+
+from amr.annotate_datasets import annotate_sentences
+from amr.indexing_utils import compute_token_overlap_range
 from helper import *
 from intervals import *
-import spacy
-from torch.nn.utils.rnn import pad_sequence
-import stanza
 
 
 def generate_reldesc():
@@ -331,9 +336,7 @@ def create_japflow():
             pdb.set_trace()
             print(relfile)
 
-        data_dict["all"].append(
-            {"_id": doc_id, "text": text, "anns": anns, "rels": rels}
-        )
+        data_dict["all"].append({"_id": doc_id, "text": text, "anns": anns, "rels": rels})
         for elem in anns:
             ent_lbls.append(elem["label"])
         for elem in rels:
@@ -817,9 +820,7 @@ def get_srl_parses(srls=None):
             if i == j:
                 continue
             vn_j, start_j, end_j = verb_names[j], verb_start_idxs[j], verb_end_idxs[j]
-            srl_elems = [
-                elem for elem in srl_graph if elem["root_start_idx"] == start_i
-            ]
+            srl_elems = [elem for elem in srl_graph if elem["root_start_idx"] == start_i]
             for elem in srl_elems:
                 if elem["start_idx"] <= start_j and elem["end_idx"] > end_j:
                     curr_dict = {
@@ -910,9 +911,7 @@ def dump_srls(data_dir, splits, text_tokenizer="scispacy"):
 
             # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
             sent_idxs = [0] + [sent.end_char for sent in sents]
-            sent_ints = [
-                (sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)
-            ]
+            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
             rel_ints = sorted(rel_map)
 
             for rel_start, rel_end in rel_ints:
@@ -1019,9 +1018,7 @@ def dump_amrs(data_dir, splits, bert_model, text_tokenizer="scispacy"):
 
             # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
             sent_idxs = [0] + [sent.end_char for sent in sents]
-            sent_ints = [
-                (sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)
-            ]
+            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
             rel_ints = sorted(rel_map)
 
             for rel_start, rel_end in rel_ints:
@@ -1378,9 +1375,7 @@ def add_parses(data_dir, splits, text_tokenizer="scispacy"):
 
             # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
             sent_idxs = [0] + [sent.end_char for sent in sents]
-            sent_ints = [
-                (sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)
-            ]
+            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
             rel_ints = sorted(rel_map)
 
             for rel_start, rel_end in rel_ints:
@@ -1438,9 +1433,9 @@ def add_parses(data_dir, splits, text_tokenizer="scispacy"):
                     assert sent_str[arg2_start_idx:arg2_end_idx] == arg2_word
                 except Exception as e:
                     try:
-                        arg1_start_idx, arg2_start_idx = sent_str.index(
-                            arg1_word
-                        ), sent_str.index(arg2_word)
+                        arg1_start_idx, arg2_start_idx = sent_str.index(arg1_word), sent_str.index(
+                            arg2_word
+                        )
                         arg1_end_idx, arg2_end_idx = arg1_start_idx + len(
                             arg1_word
                         ), arg2_start_idx + len(arg2_word)
@@ -1460,21 +1455,13 @@ def add_parses(data_dir, splits, text_tokenizer="scispacy"):
                             word.deprel,
                         )
 
-                        if (
-                            word.start_char >= arg1_start_idx
-                            and word.end_char <= arg1_end_idx
-                        ):
+                        if word.start_char >= arg1_start_idx and word.end_char <= arg1_end_idx:
                             dep_val = 1
-                        elif (
-                            word.start_char >= arg2_start_idx
-                            and word.end_char <= arg2_end_idx
-                        ):
+                        elif word.start_char >= arg2_start_idx and word.end_char <= arg2_end_idx:
                             dep_val = 2
                         else:
                             dep_val = 0
-                        dep_arr.append(
-                            (word_id, word_head, word_text, word_deprel, dep_val)
-                        )
+                        dep_arr.append((word_id, word_head, word_text, word_deprel, dep_val))
 
                 predictor = predictors.SrlTransformersPredictor.from_path(
                     "/projects/flow_graphs/models/srl_bert_base_conll2012.tar.gz",
@@ -1570,16 +1557,13 @@ def create_datafield(
                     rel["arg_label"],
                 )
 
-
             # CREATING A SPAN-SENTENCE MAP
             ##################################################
 
             # sent_idxs: token indices of where each sentence begins
             sent_idxs = [0] + [max([tok.idx for tok in sent]) for sent in sents]
             # sent_ints: token intervals of sentences in the documents
-            sent_ints = [
-                (sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)
-            ]
+            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
             rel_ints = sorted(rel_map)
 
             for rel_start, rel_end in rel_ints:
@@ -1592,7 +1576,6 @@ def create_datafield(
                     interdict[(rel_start, rel_end)].append(sents[sent_cnt])
 
             ### creates each separate instance for each relation.
-
 
             # WITH EACH SPAN/SENTENCE/RELATION
             # MAPPING ENTITIES/SENTENCES TO TOKENS
@@ -1648,9 +1631,7 @@ def create_datafield(
                 arg1_ann_map[e1_start:e1_end] = (e1_start, e1_end, arg1_label)
                 arg2_ann_map[e2_start:e2_end] = (e2_start, e2_end, arg2_label)
 
-                sent_toks = tokenizer(
-                    sent_str, return_offsets_mapping=True, max_length=512
-                )
+                sent_toks = tokenizer(sent_str, return_offsets_mapping=True, max_length=512)
                 bert_toks = sent_toks["input_ids"]
                 tok_range = sent_toks["offset_mapping"]
 
@@ -1681,10 +1662,8 @@ def create_datafield(
                 edge_arr = []
                 dep_arr = []
 
-
                 # DEPENDENCY PARSE, MAP WORDS TO ENTITIES
                 ##################################################
-
 
                 # Specifically for the root that is attached to the main verb
                 # STAR NODE
@@ -1725,7 +1704,6 @@ def create_datafield(
 
                 last_six, last_eix = 1, 1
 
-
                 # CONSTRUCT GRAPH FROM DEPENDENCIES
                 ##################################################
 
@@ -1765,7 +1743,6 @@ def create_datafield(
                     # if 	idx == len(tok_range) -2		: end_tok_idx = idx+1
                     # if 	idx == len(tok_range) -1		: end_tok_idx = idx+1
 
-                    
                     if start_tok_idx == 1 and end_tok_idx == 1:
                         start_tok_idx, end_tok_idx = last_six, last_eix
                     node_idx_dict[start_idx] = (start_tok_idx, end_tok_idx)
@@ -1781,9 +1758,7 @@ def create_datafield(
 
                 for sent_num in range(num_sents):
                     tok_idxs = [
-                        node_idx_dict[elem]
-                        for elem in node_idx_dict
-                        if elem[0] == sent_num
+                        node_idx_dict[elem] for elem in node_idx_dict if elem[0] == sent_num
                     ]
                     min_tok_idx = min([tok_idx[0] for tok_idx in tok_idxs])
                     max_tok_idx = max([tok_idx[1] for tok_idx in tok_idxs])
@@ -1827,7 +1802,7 @@ def create_datafield(
                     edge_index[1].append(node_dict[n2])
                     edge_type.append(rel_idx)
 
-                ## Add the top node in 
+                ## Add the top node in
                 for sent_num in range(num_sents):
                     edge_index[0].append(node_dict[(sent_num, 0)])
                     edge_index[1].append(node_dict[(-1, -1)])
@@ -1864,8 +1839,176 @@ def create_datafield(
                 # import pdb; pdb.set_trace()
 
                 # AMR Parsing/construction
-                ################################################## 
+                ##################################################
 
+                ## TODO: pass in a parameter for model loading, so that it's not spooky implicits
+                amr_model = load_stog_model()
+
+                ## TODO: actually implement this
+                amr_relation_encoding = {}
+                aligned_amrs, split_sentences, aligned_tokens = annotate_sentences(
+                    sent_str, amr_model, nlp
+                )
+
+                # annotations are computed relative to the individual sentence, but tokens relative
+                #  to all the sentences together
+                sentence_offsets = [0]
+                acc = 0
+                for sentence in split_sentences[:-1]:
+                    sentence_offsets = acc + len(sentence)
+
+                amr_node_dict = {}
+                amr_node_idx_dict = {}
+                amr_node_mask_dict = {}
+                amr_edge_arr = []
+                amr_edge_types = []
+
+                amr_node_dict[(-1, -1)] = 0
+                amr_node_idx_dict[(-1, -1)] = (1, len(bert_toks) - 1)
+                amr_node_mask_dict[(-1, -1)] = 0
+
+                for sentence_idx, (amr_graph, aligned_tokens, sentence_offset) in zip(
+                    aligned_amrs, aligned_tokens, sentence_offsets
+                ):
+                    alignments = penman.surface.alignments(amr_graph)
+                    for triple in amr_graph.triples:
+                        s, r, t = triple
+
+                        ## Add nodes to the node map
+                        if r == ":instance":
+                            if s not in amr_node_dict:
+                                amr_node_dict[(sentence_idx, s)] = len(amr_node_dict)
+                        else:
+                            if s not in amr_node_dict:
+                                amr_node_dict[(sentence_idx, s)] = len(amr_node_dict)
+                            if t not in amr_node_dict:
+                                amr_node_dict[(sentence_idx, t)] = len(amr_node_dict)
+
+                        ## Add the corresponding edges
+                        amr_edge_arr.append((amr_node_dict[s], amr_node_dict[t]))
+                        amr_edge_types.append(amr_relation_encoding[r])
+
+                        ## Map the nodes of the graph to BERT tokens and relations
+                        if triple in alignments:
+                            alignment = alignments[triple]
+                            lower_idx = alignment.indices[0]
+                            upper_idx = (
+                                lower_idx + 1 if len(upper_idx) == 0 else alignment.indices[1]
+                            )
+
+                            # set up the node-berttoken map
+                            for token_idx in range(lower_idx, upper_idx):
+                                token = aligned_tokens[token_idx]
+                                overlapping_offset_range = compute_token_overlap_range(
+                                    token, sentence_offset, sent_toks["offset_mapping"]
+                                )
+                                node_start_token, node_end_token = overlapping_offset_range
+
+                                if r == ":instance":
+                                    amr_node_idx_dict[(sentence_idx, s)] = overlapping_offset_range
+                                    if any(e1_toks[node_start_token:node_end_token]) and any(
+                                        e1_toks[node_start_token:node_end_token]
+                                    ):
+                                        amr_node_mask_dict[(sentence_idx, s)] = 3
+                                    elif any(e1_toks[node_start_token:node_end_token]):
+                                        amr_node_mask_dict[(sentence_idx, s)] = 1
+                                    elif any(e1_toks[node_start_token:node_end_token]):
+                                        amr_node_mask_dict[(sentence_idx, s)] = 2
+                                    else:
+                                        amr_node_mask_dict[(sentence_idx, s)] = 0
+                                else:
+                                    amr_node_idx_dict[(sentence_idx, t)] = overlapping_offset_range
+                                    if any(e1_toks[node_start_token:node_end_token]):
+                                        amr_node_mask_dict[(sentence_idx, t)] = 1
+                                    elif any(e1_toks[node_start_token:node_end_token]):
+                                        amr_node_mask_dict[(sentence_idx, t)] = 2
+                                    else:
+                                        amr_node_mask_dict[(sentence_idx, t)] = 0
+
+                for sentence_idx in range(len(split_sentences)):
+                    tok_idxs = [
+                        elem for elem in amr_node_idx_dict.values() if elem[0] == sentence_idx
+                    ]
+                    min_tok_idx = min([tok_idx[0] for tok_idx in tok_idxs])
+                    max_tok_idx = max([tok_idx[1] for tok_idx in tok_idxs])
+
+                    amr_node_idx_dict[(sentence_idx, 0)] = (min_tok_idx, max_tok_idx)
+                    amr_node_mask_dict[(sentence_idx, 0)] = 0
+
+                ## Setting up masks for each node??
+                amr_x, amr_edge_index, amr_n1_mask, amr_n2_mask = (
+                    [],
+                    [[], []],
+                    [],
+                    [],
+                )
+                for node in amr_node_dict:
+                    six, eix = amr_node_idx_dict[node]
+                    temp_ones = torch.ones((512,)) * -torch.inf
+
+                    try:
+                        assert six < eix
+                    except Exception as e:
+                        import pdb
+
+                        pdb.set_trace()
+
+                    temp_ones[six:eix] = 0
+                    amr_x.append(temp_ones)
+
+                    mask = amr_node_mask_dict[node]
+                    if mask == 0:
+                        amr_n1_mask.append(0)
+                        amr_n2_mask.append(0)
+                    if mask == 1:
+                        amr_n1_mask.append(1)
+                        amr_n2_mask.append(0)
+                    if mask == 2:
+                        amr_n1_mask.append(0)
+                        amr_n2_mask.append(1)
+                    if mask == 3:
+                        amr_n1_mask.append(1)
+                        amr_n2_mask.append(1)
+
+                ## Setting up the edge arrays
+                for edge in amr_edge_arr:
+                    n1, n2 = edge
+                    amr_edge_index[0].append(amr_node_dict[n1])
+                    amr_edge_index[1].append(amr_node_dict[n2])
+
+                ## Add the top node in
+                for sentence_idx in range(len(split_sentences)):
+                    amr_edge_index[0].append(amr_node_dict[(sentence_idx, 0)])
+                    amr_edge_index[1].append(amr_node_dict[(-1, -1)])
+                    amr_edge_types.append(amr_relation_encoding["STAR"])
+
+                try:
+                    assert sum(amr_n1_mask) > 0 and sum(amr_n2_mask) > 0
+                except Exception as e:
+                    import pdb
+
+                    pdb.set_trace()
+
+                ## Set up the Data instance for the relation
+                try:
+                    amr_x, amr_edge_index, amr_edge_type, amr_n1_mask, amr_n2_mask = (
+                        torch.stack(amr_x, dim=0),
+                        torch.LongTensor(amr_edge_index),
+                        torch.LongTensor(amr_edge_types),
+                        torch.LongTensor(amr_n1_mask),
+                        torch.LongTensor(amr_n2_mask),
+                    )
+                    amr_data = Data(
+                        x=amr_x,
+                        edge_index=amr_edge_index,
+                        edge_type=amr_edge_type,
+                        n1_mask=amr_n1_mask,
+                        n2_mask=amr_n2_mask,
+                    )
+                except Exception as e:
+                    import pdb
+
+                    pdb.set_trace()
 
                 data[split]["rels"].append(
                     {
@@ -1881,7 +2024,7 @@ def create_datafield(
                         "sent": sent_str,
                         "sent_start": sent_start,
                         "dep_data": dep_data,
-                        "amr_data": [],
+                        "amr_data": amr_data,
                     }
                 )
 
@@ -1889,9 +2032,7 @@ def create_datafield(
             rels_data = list(data[split]["rels"])
             random.shuffle(rels_data)
             data["train"]["rels"] = rels_data[0 : int(len(rels_data) * 0.8)]
-            data["dev"]["rels"] = rels_data[
-                int(len(rels_data) * 0.8) : int(len(rels_data) * 0.9)
-            ]
+            data["dev"]["rels"] = rels_data[int(len(rels_data) * 0.8) : int(len(rels_data) * 0.9)]
             data["test"]["rels"] = rels_data[int(len(rels_data) * 0.9) :]
 
     return data
@@ -1987,9 +2128,7 @@ def create_dataset():
 def create_parses():
     if args.dataset == "risec":
         if args.parse == "srl":
-            dump_srls(
-                "../data/risec/", ["train", "dev", "test"], text_tokenizer="scispacy"
-            )
+            dump_srls("../data/risec/", ["train", "dev", "test"], text_tokenizer="scispacy")
         elif args.parse == "amr":
             dump_amrs(
                 "../data/risec/",
@@ -2024,9 +2163,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for analysis")
     parser.add_argument("--step", required=True, help="Which function to call")
     parser.add_argument("--dataset", default="risec", help="Which dataset")
-    parser.add_argument(
-        "--parse", default="amr", help="Type of parse afforded by the model"
-    )
+    parser.add_argument("--parse", default="amr", help="Type of parse afforded by the model")
     args = parser.parse_args()
 
     if args.step == "create":
