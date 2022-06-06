@@ -1147,6 +1147,10 @@ def add_parses(data_dir, splits,  text_tokenizer='scispacy'):
     return 
 
 
+
+def add_info():
+    pass
+
    
 def create_datafield(data_dir, splits, bert_model='bert-base-uncased', text_tokenizer='scispacy', omit_rels=[], dep_flag=True):
     from transformers import AutoTokenizer, AutoModel 
@@ -1445,7 +1449,15 @@ def create_mini_batch_orig(samples):
     return tokens_tensors, segments_tensors, marked_e1, marked_e2, masks_tensors, relation_emb, label_ids
 
 
-
+def create_fewshot_data():
+    for dataset in ['risec','japflow','mscorpus','chemu']:
+        data = load_dill(f'../data/{dataset}/data.dill')
+        rels_data = list(data['train']['rels'])
+        random.shuffle(rels_data)
+        for fewshot in [0.01,0.05, 0.1, 0.2,0.5]:
+            data['train']['rels'] = rels_data[0:int(len(rels_data)*fewshot)]
+            dump_dill(data, f'../data/{dataset}/data-{fewshot}.dill')
+            
 
 def create_dataset():
     if      args.dataset == 'risec': 	create_risec()
@@ -1490,6 +1502,7 @@ if __name__ =='__main__':
     
     if 		args.step 	== 'create': 	create_dataset()
     elif 	args.step 	== 'load'	: 	load_dataset()
+    elif    args.step   == 'fewshot':   create_fewshot_data()
     elif 	args.step 	== 'rel_emb': 	generate_reldesc()
     elif 	args.step 	== 'parse'	: 	create_parses()
     elif 	args.step 	== 'srl': 		create_srl_tags()

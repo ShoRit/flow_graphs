@@ -389,6 +389,51 @@ def main(args):
             print(f'[best test] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K : {h_K}')
 
 
+    if args.mode                                                        == 'batch_eval':
+        
+        if args.domain 													==	'src':
+            test_y, test_idxmap, test_labels, test_y_attr, test_lbl2id  = 	get_known_lbl_features(test_data, rel2desc_emb, lbl2id)
+        else:
+            test_y, test_idxmap, test_labels, test_y_attr, test_lbl2id  = 	get_lbl_features(test_data, rel2desc_emb)
+   
+        testset        							   					 	= 	ZSBert_RGCN_RelDataset(test_data, test_lbl2id, tokenizer, args, domain=args.domain)
+        testloader     							   					 	= 	DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
+  
+        model 															= 	ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
+        model       													= 	model.to(device)
+        
+        f1_arr, prec_arr, rec_arr, hits_arr                             =   [],[],[],[]
+        
+        for seed in range(0,3):
+            checkpoint_file 											=  f'../checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{seed}-lr_{args.lr}.pt'
+            model.load_state_dict(torch.load(checkpoint_file))
+            model.eval()
+            
+            if args.domain 	=='src':
+                pt, rt, f1t 	 = seen_eval(model, testloader, device=device)
+                f1_arr.append(f1t); prec_arr.append(pt); rec_arr.append(rt)
+            else:
+                preds       										    = extract_relation_emb(model, testloader, device=device).cpu().numpy()
+                pt, rt, f1t, h_K  									    = evaluate(preds, test_y_attr, test_y, test_idxmap, args.dist_func, test_lbl2id, num_neighbors=args.num_neighbors)
+                # print(f'[best test] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K : {h_K}')
+                f1_arr.append(f1t); prec_arr.append(pt); rec_arr.append(rt); hits_arr.append(h_K)
+
+        wandb.login()
+        wandb.init(project="narrative-flow-eval", entity="flow-graphs-cmu", name=f'{checkpoint_file.split("/")[-1]}')
+        wandb.log({"f1": 		np.mean(f1_arr)})
+        wandb.log({"std_f1": 	np.std(f1_arr)})
+        wandb.log({"precision": np.mean(prec_arr)})
+        wandb.log({"recall": 	np.mean(rec_arr)})
+        wandb.log({"dep": 		args.dep})
+        wandb.log({"bert": 		args.bert_model})
+        wandb.log({"src_dataset": 	args.src_dataset})
+        wandb.log({"tgt_dataset": 	args.tgt_dataset})
+        wandb.log({"amr": 	   args.amr})
+        wandb.log({"gnn": 	   args.gnn})
+        wandb.log({"gnn_depth":args.gnn_depth})
+        wandb.log({"alpha":    args.alpha})
+        
+
 
 if __name__ =='__main__':	
     args                            =   get_args()

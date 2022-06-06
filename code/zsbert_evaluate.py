@@ -36,32 +36,35 @@ def compute_macro_PRF(predicted_idx, gold_idx, i=-1, empty_label=None):
 
     return avg_prec, avg_rec, f1
 
-def extract_relation_emb(model, testloader, device, args):
+def extract_relation_emb(model, testloader, device):
     out_relation_embs = None
     model.eval()
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     for data in tqdm(testloader):
-        if args.domain =='tgt':
-            tokens_tensors, segments_tensors, marked_e1, marked_e2, \
-            masks_tensors, relation_emb = [t.to(device) for t in data if t is not None]
-            labels                      = None
-        else:
-            tokens_tensors, segments_tensors, marked_e1, marked_e2, \
-            masks_tensors, relation_emb, labels = [t.to(device) for t in data if t is not None]
-            
+        
+        tokens_tensors, segments_tensors, marked_e1, marked_e2, masks_tensors, relation_emb, labels, graph_data = [t.to(device) if t is not None else t for t in data ]	
+        
         with torch.no_grad():
-            outputs, out_relation_emb = model(input_ids=tokens_tensors, 
+            outputs_dict = model(input_ids=tokens_tensors, 
                                         token_type_ids=segments_tensors,
                                         e1_mask=marked_e1,
                                         e2_mask=marked_e2,
                                         attention_mask=masks_tensors,
                                         input_relation_emb=relation_emb,
-                                        labels = labels)
-            logits = outputs[0]
+                                        labels=labels,
+                                        graph_data= graph_data,
+                                        device =device)
+            logits          = outputs_dict['logits']
+            
+        # if out_relation_embs is None:
+        #     out_relation_embs = out_relation_emb
+        # else:
+        #     out_relation_embs = torch.cat((out_relation_embs, out_relation_emb))    
         if out_relation_embs is None:
-            out_relation_embs = out_relation_emb
+            out_relation_embs = outputs_dict['relation_embeddings']
         else:
-            out_relation_embs = torch.cat((out_relation_embs, out_relation_emb))    
+            out_relation_embs = torch.cat((out_relation_embs, outputs_dict['relation_embeddings']))    
+        
     return out_relation_embs
 
 # def evaluate(preds, y_attr, y_label, idxmap, num_train_y, dist_func='inner'):
