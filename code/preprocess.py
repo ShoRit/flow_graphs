@@ -10,11 +10,16 @@ from helper import *
 from intervals import *
 
 
+def load_amr_rel2id(path="/projects/flow_graphs/data/amr_rel2id.json"):
+    with open(path) as f:
+        return json.load(f)
+
+
 def generate_reldesc():
     from sentence_transformers import SentenceTransformer
 
     rel2desc_emb = {}
-    rel2desc = json.load(open(f"../data/rel2desc.json"))
+    rel2desc = json.load(open(f"/projects/flow_graphs/data/rel2desc.json"))
     encoder = SentenceTransformer("bert-base-nli-mean-tokens")
     rel2id, id2rel = {}, {}
 
@@ -202,7 +207,7 @@ def create_risec():
                     )
                 )
 
-    out_dir = f"../data/risec/"
+    out_dir = f"/projects/flow_graphs/data/risec/"
     for split in ["train", "dev", "test"]:
         with open(f"{out_dir}/{split}.json", "w") as json_file:
             json.dump(data_dict[split], json_file, indent=4)
@@ -349,7 +354,7 @@ def create_japflow():
                 )
             )
 
-    out_dir = f"../data/japflow/"
+    out_dir = f"/projects/flow_graphs/data/japflow/"
     for split in ["all"]:
         with open(f"{out_dir}/{split}.json", "w") as json_file:
             json.dump(data_dict[split], json_file, indent=4)
@@ -489,7 +494,7 @@ def create_mscorpus():
                     )
                 )
 
-    out_dir = f"../data/mscorpus/"
+    out_dir = f"/projects/flow_graphs/data/mscorpus/"
     for split in ["train", "dev", "test"]:
         with open(f"{out_dir}/{split}.json", "w") as json_file:
             json.dump(data_dict[split], json_file, indent=4)
@@ -604,7 +609,7 @@ def create_chemu():
                     )
                 )
 
-    out_dir = f"../data/chemu/"
+    out_dir = f"/projects/flow_graphs/data/chemu/"
     for split in ["train", "dev", "test"]:
         with open(f"{out_dir}/{split}.json", "w") as json_file:
             json.dump(data_dict[split], json_file, indent=4)
@@ -1513,6 +1518,8 @@ def create_datafield(
 
     from transformers import AutoTokenizer, AutoModel
 
+    invalid_amr_count = 0
+
     tokenizer = AutoTokenizer.from_pretrained(bert_model)
     model = AutoModel.from_pretrained(bert_model)
     from torch_geometric.data import Data
@@ -1844,8 +1851,7 @@ def create_datafield(
                 ## TODO: pass in a parameter for model loading, so that it's not spooky implicits
                 amr_model = load_stog_model()
 
-                ## TODO: actually implement this
-                amr_relation_encoding = {}
+                amr_relation_encoding = load_amr_rel2id()
                 aligned_amrs, split_sentences, aligned_tokens = annotate_sentences(
                     sent_str, amr_model, nlp
                 )
@@ -1855,7 +1861,7 @@ def create_datafield(
                 sentence_offsets = [0]
                 acc = 0
                 for sentence in split_sentences[:-1]:
-                    sentence_offsets = acc + len(sentence)
+                    sentence_offsets.append(acc + len(sentence))
 
                 amr_node_dict = {}
                 amr_node_idx_dict = {}
@@ -1867,8 +1873,8 @@ def create_datafield(
                 amr_node_idx_dict[(-1, -1)] = (1, len(bert_toks) - 1)
                 amr_node_mask_dict[(-1, -1)] = 0
 
-                for sentence_idx, (amr_graph, aligned_tokens, sentence_offset) in zip(
-                    aligned_amrs, aligned_tokens, sentence_offsets
+                for sentence_idx, (amr_graph, aligned_tokens, sentence_offset) in enumerate(
+                    zip(aligned_amrs, aligned_tokens, sentence_offsets)
                 ):
                     alignments = penman.surface.alignments(amr_graph)
                     for triple in amr_graph.triples:
@@ -1876,24 +1882,30 @@ def create_datafield(
 
                         ## Add nodes to the node map
                         if r == ":instance":
+                            # if this is an instance node, only add the source as a node, bc this defines what the node "is"
                             if s not in amr_node_dict:
                                 amr_node_dict[(sentence_idx, s)] = len(amr_node_dict)
                         else:
+                            # if it's not an instance node, add both the source and the target
                             if s not in amr_node_dict:
                                 amr_node_dict[(sentence_idx, s)] = len(amr_node_dict)
                             if t not in amr_node_dict:
                                 amr_node_dict[(sentence_idx, t)] = len(amr_node_dict)
 
-                        ## Add the corresponding edges
-                        amr_edge_arr.append((amr_node_dict[s], amr_node_dict[t]))
-                        amr_edge_types.append(amr_relation_encoding[r])
+                            ## Add the corresponding edges
+                            amr_edge_arr.append(
+                                (amr_node_dict[(sentence_idx, s)], amr_node_dict[(sentence_idx, t)])
+                            )
+                            amr_edge_types.append(amr_relation_encoding[r.lower()])
 
                         ## Map the nodes of the graph to BERT tokens and relations
                         if triple in alignments:
                             alignment = alignments[triple]
                             lower_idx = alignment.indices[0]
                             upper_idx = (
-                                lower_idx + 1 if len(upper_idx) == 0 else alignment.indices[1]
+                                lower_idx + 1
+                                if len(alignment.indices) == 1
+                                else alignment.indices[1]
                             )
 
                             # set up the node-berttoken map
@@ -1927,7 +1939,7 @@ def create_datafield(
 
                 for sentence_idx in range(len(split_sentences)):
                     tok_idxs = [
-                        elem for elem in amr_node_idx_dict.values() if elem[0] == sentence_idx
+                        value for key, value in amr_node_idx_dict.items() if key[0] == sentence_idx
                     ]
                     min_tok_idx = min([tok_idx[0] for tok_idx in tok_idxs])
                     max_tok_idx = max([tok_idx[1] for tok_idx in tok_idxs])
@@ -1943,11 +1955,15 @@ def create_datafield(
                     [],
                 )
                 for node in amr_node_dict:
-                    six, eix = amr_node_idx_dict[node]
+                    if node in amr_node_idx_dict:
+                        six, eix = amr_node_idx_dict[node]
+                    else:
+                        six = 0
+                        eix = 0
                     temp_ones = torch.ones((512,)) * -torch.inf
 
                     try:
-                        assert six < eix
+                        assert six <= eix
                     except Exception as e:
                         import pdb
 
@@ -1956,7 +1972,7 @@ def create_datafield(
                     temp_ones[six:eix] = 0
                     amr_x.append(temp_ones)
 
-                    mask = amr_node_mask_dict[node]
+                    mask = amr_node_mask_dict.get(node, 0)
                     if mask == 0:
                         amr_n1_mask.append(0)
                         amr_n2_mask.append(0)
@@ -1973,24 +1989,17 @@ def create_datafield(
                 ## Setting up the edge arrays
                 for edge in amr_edge_arr:
                     n1, n2 = edge
-                    amr_edge_index[0].append(amr_node_dict[n1])
-                    amr_edge_index[1].append(amr_node_dict[n2])
+                    amr_edge_index[0].append(n1)
+                    amr_edge_index[1].append(n2)
 
                 ## Add the top node in
                 for sentence_idx in range(len(split_sentences)):
-                    amr_edge_index[0].append(amr_node_dict[(sentence_idx, 0)])
+                    amr_edge_index[0].append(amr_node_dict[(sentence_idx, "z1")])
                     amr_edge_index[1].append(amr_node_dict[(-1, -1)])
                     amr_edge_types.append(amr_relation_encoding["STAR"])
 
                 try:
                     assert sum(amr_n1_mask) > 0 and sum(amr_n2_mask) > 0
-                except Exception as e:
-                    import pdb
-
-                    pdb.set_trace()
-
-                ## Set up the Data instance for the relation
-                try:
                     amr_x, amr_edge_index, amr_edge_type, amr_n1_mask, amr_n2_mask = (
                         torch.stack(amr_x, dim=0),
                         torch.LongTensor(amr_edge_index),
@@ -2006,9 +2015,8 @@ def create_datafield(
                         n2_mask=amr_n2_mask,
                     )
                 except Exception as e:
-                    import pdb
-
-                    pdb.set_trace()
+                    amr_data = None
+                    invalid_amr_count += 1
 
                 data[split]["rels"].append(
                     {
@@ -2035,6 +2043,7 @@ def create_datafield(
             data["dev"]["rels"] = rels_data[int(len(rels_data) * 0.8) : int(len(rels_data) * 0.9)]
             data["test"]["rels"] = rels_data[int(len(rels_data) * 0.9) :]
 
+    print(f"Invalid AMR count: {invalid_amr_count}")
     return data
 
 
@@ -2128,32 +2137,36 @@ def create_dataset():
 def create_parses():
     if args.dataset == "risec":
         if args.parse == "srl":
-            dump_srls("../data/risec/", ["train", "dev", "test"], text_tokenizer="scispacy")
+            dump_srls(
+                "/projects/flow_graphs/data/risec/",
+                ["train", "dev", "test"],
+                text_tokenizer="scispacy",
+            )
         elif args.parse == "amr":
             dump_amrs(
-                "../data/risec/",
+                "/projects/flow_graphs/data/risec/",
                 ["train", "dev", "test"],
                 bert_model="bert-base-uncased",
                 text_tokenizer="scispacy",
             )
-        # dataset 	= add_parses('../data/risec/',['train','dev','test'])
-        # dump_dill(dataset, f'../data/risec/parses.dill')
+        # dataset 	= add_parses('/projects/flow_graphs/data/risec/',['train','dev','test'])
+        # dump_dill(dataset, f'/projects/flow_graphs/data/risec/parses.dill')
 
 
 def load_dataset():
     # if  args.dataset == 'risec':
 
-    # dataset 	= create_datafield(f'../data/{args.dataset}/',['train','dev','test'], bert_model ='bert-base-uncased', text_tokenizer='scispacy')
-    # dump_dill(dataset, f'../data/{args.dataset}/data.dill')
+    # dataset 	= create_datafield(f'/projects/flow_graphs/data/{args.dataset}/',['train','dev','test'], bert_model ='bert-base-uncased', text_tokenizer='scispacy')
+    # dump_dill(dataset, f'/projects/flow_graphs/data/{args.dataset}/data.dill')
 
     if args.dataset == "japflow":
         dataset = create_datafield(
-            f"../data/{args.dataset}/",
+            f"/projects/flow_graphs/data/{args.dataset}/",
             ["all"],
             bert_model="bert-base-uncased",
             text_tokenizer="scispacy",
         )
-        dump_dill(dataset, f"../data/{args.dataset}/data.dill")
+        dump_dill(dataset, f"/projects/flow_graphs/data/{args.dataset}/data.dill")
 
     # elif args.dataset == 'japflow': 	create_japflow()
     # elif    args.dataset == 'curd': 	create_curd()

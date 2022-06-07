@@ -1,6 +1,3 @@
-from code.amr.annotate_datasets import PenmanToken
-
-
 from typing import List, Tuple
 
 from amr.annotate_datasets import PenmanToken
