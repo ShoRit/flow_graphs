@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import json
 import os
 import pickle
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 
 from amrlib import load_stog_model
 from amrlib.graph_processing.annotator import add_lemmas
@@ -27,8 +27,8 @@ class PenmanToken:
     end_idx: int
 
 
-def load_corpus(corpus_name):
-    with open(os.path.join(DATASET_BASE_PATH, corpus_name, "train.json")) as f:
+def load_corpus(corpus_name, split):
+    with open(os.path.join(DATASET_BASE_PATH, corpus_name, f"{split}.json")) as f:
         data = json.load(f)
     return [item["text"] for item in data]
 
@@ -78,15 +78,15 @@ def annotate_sentences(
     return aligned_graphs, sentences_split, aligned_tokens
 
 
-def annotate_corpus(corpus_name, amr_model):
-    instances = load_corpus(corpus_name)
+def annotate_corpus(corpus_name, split, amr_model):
+    instances = load_corpus(corpus_name, split)
     segmented = [sentencizer(instance) for instance in instances]
     all_graphs = []
     all_texts = []
 
     aligner = FAA_Aligner()
 
-    for segmented_batch in segmented:
+    for segmented_batch in tqdm(segmented):
         graphs = amr_model.parse_sents(segmented_batch, disable_progress=False, return_penman=True)
         lemma_graphs = [add_lemmas(penman.encode(graph), snt_key="snt") for graph in graphs]
         aligned_graphs = [
@@ -96,27 +96,28 @@ def annotate_corpus(corpus_name, amr_model):
             [
                 {
                     "graph": graph,
-                    "tokens": ast.literal_eval(lemma_graph.metadata["tokens"])
-                    if graph is not None
-                    else None,
                     "text": text,
                 }
                 for text, graph, lemma_graph in zip(segmented_batch, aligned_graphs, lemma_graphs)
             ]
         )
-        all_texts.append([penman.encode(graph, top=graph.top) for graph in aligned_graphs])
-    with open(os.path.join(DATASET_BASE_PATH, corpus_name, "amr.pkl"), "wb") as f:
+    with open(os.path.join(DATASET_BASE_PATH, corpus_name, f"amr_{split}.pkl"), "wb") as f:
         pickle.dump(all_graphs, f)
-    with open(os.path.join(DATASET_BASE_PATH, corpus_name, "amr.json"), "w") as f:
-        json.dump(all_texts, f, indent=4)
 
 
-def annotate_corpora(model_path, device=None, batch_size=4):
+def annotate_corpora(
+    model_path, datasets: Optional[List[str]] = None, splits="all", device=None, batch_size=4
+):
     amr_model = load_stog_model(model_path, device=device, batch_size=batch_size)
-    for dataset in DATASETS:
-        print(f"Annotating {dataset}")
-        # try:
-        annotate_corpus(dataset, amr_model)
+    if datasets is None:
+        datasets = DATASETS
+    if splits == "all":
+        splits = ["train", "dev", "test"]
+    for dataset in datasets:
+        for split in splits:
+            print(f"Annotating {dataset}/{split}")
+            # try:
+            annotate_corpus(dataset, split, amr_model)
         # except:
         #     print(f"Failed to annotate {dataset}")
         #     pass
