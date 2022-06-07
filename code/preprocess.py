@@ -2159,14 +2159,13 @@ def load_dataset():
     # dataset 	= create_datafield(f'/projects/flow_graphs/data/{args.dataset}/',['train','dev','test'], bert_model ='bert-base-uncased', text_tokenizer='scispacy')
     # dump_dill(dataset, f'/projects/flow_graphs/data/{args.dataset}/data.dill')
 
-    if args.dataset == "japflow":
-        dataset = create_datafield(
-            f"/projects/flow_graphs/data/{args.dataset}/",
-            ["all"],
-            bert_model="bert-base-uncased",
-            text_tokenizer="scispacy",
-        )
-        dump_dill(dataset, f"/projects/flow_graphs/data/{args.dataset}/data.dill")
+    dataset = create_datafield(
+        f"/projects/flow_graphs/data/{args.dataset}",
+        ["all"],
+        bert_model="bert-base-uncased",
+        text_tokenizer="scispacy",
+    )
+    dump_dill(dataset, f"/projects/flow_graphs/data/{args.dataset}/data_amr.dill")
 
     # elif args.dataset == 'japflow': 	create_japflow()
     # elif    args.dataset == 'curd': 	create_curd()
