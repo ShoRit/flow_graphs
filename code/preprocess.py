@@ -1,10 +1,13 @@
+from collections import defaultdict as ddict
+
 from amrlib import load_stog_model
 import penman
 import spacy
 import stanza
 from torch.nn.utils.rnn import pad_sequence
 
-from amr.annotate_datasets import annotate_sentences
+from amr.annotate_datasets import align_tokens_to_sentence
+from amr.create_amr_rel2id import UNKNOWN_RELATION
 from amr.indexing_utils import compute_token_overlap_range
 from helper import *
 from intervals import *
@@ -1539,8 +1542,12 @@ def create_datafield(
     bad_sents = []
     for split in splits:
         docs = json.load(open(f"{data_dir}/{split}.json"))
+        if split != "train":
+            raise AssertionError("do not have AMRs for this split!")
+        with open(f"{data_dir}/amr.pkl", "rb") as f:
+            parsed_amrs = pickle.load(f)
         # docs 		= json.load(open(f'{data_dir}/parses_{split}.json'))
-        for count, doc in enumerate(docs):
+        for count, (doc, amr_content) in enumerate(zip(docs, parsed_amrs)):
             print(f"Done for {count}/{len(docs)}", end="\r")
             rel_map = {}
             lbl_cnt = ddict(int)
@@ -1847,21 +1854,31 @@ def create_datafield(
 
                 # AMR Parsing/construction
                 ##################################################
-
-                ## TODO: pass in a parameter for model loading, so that it's not spooky implicits
-                amr_model = load_stog_model()
+                split_sentences, aligned_amrs = zip(
+                    *[
+                        (parsed_sentence["text"], parsed_sentence["graph"])
+                        for parsed_sentence in amr_content
+                        if parsed_sentence["text"].strip()
+                        and parsed_sentence["text"]
+                        in sent_str.replace(
+                            "\n", " "
+                        )  # this mimics how the AMRs were preprocessed. I know it's extremely ad-hoc. I'm sorry.
+                    ]
+                )
 
                 amr_relation_encoding = load_amr_rel2id()
-                aligned_amrs, split_sentences, aligned_tokens = annotate_sentences(
-                    sent_str, amr_model, nlp
-                )
+                aligned_tokens = [
+                    align_tokens_to_sentence(sentence.split(" "), sentence)
+                    for sentence in split_sentences
+                ]
 
                 # annotations are computed relative to the individual sentence, but tokens relative
                 #  to all the sentences together
                 sentence_offsets = [0]
                 acc = 0
                 for sentence in split_sentences[:-1]:
-                    sentence_offsets.append(acc + len(sentence))
+                    acc = acc + len(sentence)
+                    sentence_offsets.append(acc)
 
                 amr_node_dict = {}
                 amr_node_idx_dict = {}
@@ -1896,7 +1913,9 @@ def create_datafield(
                             amr_edge_arr.append(
                                 (amr_node_dict[(sentence_idx, s)], amr_node_dict[(sentence_idx, t)])
                             )
-                            amr_edge_types.append(amr_relation_encoding[r.lower()])
+                            amr_edge_types.append(
+                                amr_relation_encoding.get(r.lower(), UNKNOWN_RELATION)
+                            )
 
                         ## Map the nodes of the graph to BERT tokens and relations
                         if triple in alignments:
@@ -1937,12 +1956,22 @@ def create_datafield(
                                     else:
                                         amr_node_mask_dict[(sentence_idx, t)] = 0
 
+                # set up sentence nodes
+
                 for sentence_idx in range(len(split_sentences)):
-                    tok_idxs = [
-                        value for key, value in amr_node_idx_dict.items() if key[0] == sentence_idx
+                    prev_sentence_start = (
+                        0 if sentence_idx == 0 else sentence_offsets[sentence_idx - 1]
+                    )
+                    sentence_token_idxs = [
+                        i
+                        for i, (token_start, token_end) in enumerate(sent_toks["offset_mapping"])
+                        if token_start >= prev_sentence_start
+                        and token_end <= sentence_offsets[sentence_idx]
+                        and i not in {1, len(bert_toks)}
                     ]
-                    min_tok_idx = min([tok_idx[0] for tok_idx in tok_idxs])
-                    max_tok_idx = max([tok_idx[1] for tok_idx in tok_idxs])
+
+                    min_tok_idx = min(sentence_token_idxs)
+                    max_tok_idx = max(sentence_token_idxs)
 
                     amr_node_idx_dict[(sentence_idx, 0)] = (min_tok_idx, max_tok_idx)
                     amr_node_mask_dict[(sentence_idx, 0)] = 0
@@ -2161,7 +2190,9 @@ def load_dataset():
 
     dataset = create_datafield(
         f"/projects/flow_graphs/data/{args.dataset}",
-        ["all"],
+        [
+            "train",
+        ],
         bert_model="bert-base-uncased",
         text_tokenizer="scispacy",
     )

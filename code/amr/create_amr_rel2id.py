@@ -9,9 +9,11 @@ import fire
 DATASET_BASE_PATH = "/projects/flow_graphs/data"
 DATASETS = ["risec", "japflow", "chemu", "mscorpus"]
 
+UNKNOWN_RELATION = "UNK"
+
 
 def create_amr_rel2id(dataset_paths, frequency_cutoff: 0) -> Dict[str, int]:
-    all_relations = ["STAR"]
+    all_relations = ["STAR", UNKNOWN_RELATION]
 
     for dataset in dataset_paths:
         with open(os.path.join(dataset, "amr.pkl"), "rb") as f:
@@ -26,7 +28,11 @@ def create_amr_rel2id(dataset_paths, frequency_cutoff: 0) -> Dict[str, int]:
 
     relation_counter = Counter(all_relations)
     relation_counter = Counter(
-        {rel: count for rel, count in relation_counter.items() if count >= frequency_cutoff}
+        {
+            rel: count
+            for rel, count in relation_counter.items()
+            if count >= frequency_cutoff or rel in {"STAR", UNKNOWN_RELATION}
+        }
     )
 
     amr_rel2id = {}
@@ -46,7 +52,7 @@ def create_amr_rel2id_wrapper(
 
     rel2id = create_amr_rel2id(dataset_paths, frequency_cutoff)
     with open(output_filename, "w") as f:
-        json.dump(rel2id, f)
+        json.dump(rel2id, f, indent=4)
 
 
 if __name__ == "__main__":
