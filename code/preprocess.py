@@ -1521,7 +1521,11 @@ def create_datafield(
 
     from transformers import AutoTokenizer, AutoModel
 
+    amr_count = 0
     invalid_amr_count = 0
+    arg1_missing = 0
+    arg2_missing = 0
+    both_missing = 0
 
     tokenizer = AutoTokenizer.from_pretrained(bert_model)
     model = AutoModel.from_pretrained(bert_model)
@@ -1542,9 +1546,8 @@ def create_datafield(
     bad_sents = []
     for split in splits:
         docs = json.load(open(f"{data_dir}/{split}.json"))
-        if split != "train":
-            raise AssertionError("do not have AMRs for this split!")
-        with open(f"{data_dir}/amr.pkl", "rb") as f:
+
+        with open(f"{data_dir}/amr_{split}.pkl", "rb") as f:
             parsed_amrs = pickle.load(f)
         # docs 		= json.load(open(f'{data_dir}/parses_{split}.json'))
         for count, (doc, amr_content) in enumerate(zip(docs, parsed_amrs)):
@@ -1868,7 +1871,9 @@ def create_datafield(
 
                 amr_relation_encoding = load_amr_rel2id()
                 aligned_tokens = [
-                    align_tokens_to_sentence(sentence.split(" "), sentence)
+                    align_tokens_to_sentence(
+                        [token for token in sentence.split(" ") if token.strip()], sentence
+                    )
                     for sentence in split_sentences
                 ]
 
@@ -1893,6 +1898,8 @@ def create_datafield(
                 for sentence_idx, (amr_graph, aligned_tokens, sentence_offset) in enumerate(
                     zip(aligned_amrs, aligned_tokens, sentence_offsets)
                 ):
+                    if amr_graph is None:
+                        continue
                     alignments = penman.surface.alignments(amr_graph)
                     for triple in amr_graph.triples:
                         s, r, t = triple
@@ -1920,15 +1927,9 @@ def create_datafield(
                         ## Map the nodes of the graph to BERT tokens and relations
                         if triple in alignments:
                             alignment = alignments[triple]
-                            lower_idx = alignment.indices[0]
-                            upper_idx = (
-                                lower_idx + 1
-                                if len(alignment.indices) == 1
-                                else alignment.indices[1]
-                            )
 
                             # set up the node-berttoken map
-                            for token_idx in range(lower_idx, upper_idx):
+                            for token_idx in alignment.indices:
                                 token = aligned_tokens[token_idx]
                                 overlapping_offset_range = compute_token_overlap_range(
                                     token, sentence_offset, sent_toks["offset_mapping"]
@@ -1938,12 +1939,12 @@ def create_datafield(
                                 if r == ":instance":
                                     amr_node_idx_dict[(sentence_idx, s)] = overlapping_offset_range
                                     if any(e1_toks[node_start_token:node_end_token]) and any(
-                                        e1_toks[node_start_token:node_end_token]
+                                        e2_toks[node_start_token:node_end_token]
                                     ):
                                         amr_node_mask_dict[(sentence_idx, s)] = 3
                                     elif any(e1_toks[node_start_token:node_end_token]):
                                         amr_node_mask_dict[(sentence_idx, s)] = 1
-                                    elif any(e1_toks[node_start_token:node_end_token]):
+                                    elif any(e2_toks[node_start_token:node_end_token]):
                                         amr_node_mask_dict[(sentence_idx, s)] = 2
                                     else:
                                         amr_node_mask_dict[(sentence_idx, s)] = 0
@@ -1951,7 +1952,7 @@ def create_datafield(
                                     amr_node_idx_dict[(sentence_idx, t)] = overlapping_offset_range
                                     if any(e1_toks[node_start_token:node_end_token]):
                                         amr_node_mask_dict[(sentence_idx, t)] = 1
-                                    elif any(e1_toks[node_start_token:node_end_token]):
+                                    elif any(e2_toks[node_start_token:node_end_token]):
                                         amr_node_mask_dict[(sentence_idx, t)] = 2
                                     else:
                                         amr_node_mask_dict[(sentence_idx, t)] = 0
@@ -2028,24 +2029,31 @@ def create_datafield(
                     amr_edge_types.append(amr_relation_encoding["STAR"])
 
                 try:
+                    amr_count += 1
                     assert sum(amr_n1_mask) > 0 and sum(amr_n2_mask) > 0
-                    amr_x, amr_edge_index, amr_edge_type, amr_n1_mask, amr_n2_mask = (
-                        torch.stack(amr_x, dim=0),
-                        torch.LongTensor(amr_edge_index),
-                        torch.LongTensor(amr_edge_types),
-                        torch.LongTensor(amr_n1_mask),
-                        torch.LongTensor(amr_n2_mask),
-                    )
-                    amr_data = Data(
-                        x=amr_x,
-                        edge_index=amr_edge_index,
-                        edge_type=amr_edge_type,
-                        n1_mask=amr_n1_mask,
-                        n2_mask=amr_n2_mask,
-                    )
                 except Exception as e:
-                    amr_data = None
                     invalid_amr_count += 1
+                    if sum(amr_n1_mask) == 0:
+                        arg1_missing += 1
+                    if sum(amr_n2_mask) == 0:
+                        arg2_missing += 1
+                    if sum(amr_n1_mask) == 0 and sum(amr_n2_mask) == 0:
+                        both_missing += 1
+
+                amr_x, amr_edge_index, amr_edge_type, amr_n1_mask, amr_n2_mask = (
+                    torch.stack(amr_x, dim=0),
+                    torch.LongTensor(amr_edge_index),
+                    torch.LongTensor(amr_edge_types),
+                    torch.LongTensor(amr_n1_mask),
+                    torch.LongTensor(amr_n2_mask),
+                )
+                amr_data = Data(
+                    x=amr_x,
+                    edge_index=amr_edge_index,
+                    edge_type=amr_edge_type,
+                    n1_mask=amr_n1_mask,
+                    n2_mask=amr_n2_mask,
+                )
 
                 data[split]["rels"].append(
                     {
@@ -2072,7 +2080,10 @@ def create_datafield(
             data["dev"]["rels"] = rels_data[int(len(rels_data) * 0.8) : int(len(rels_data) * 0.9)]
             data["test"]["rels"] = rels_data[int(len(rels_data) * 0.9) :]
 
-    print(f"Invalid AMR count: {invalid_amr_count}")
+    print(f"Invalid AMR count: {invalid_amr_count}/{amr_count}")
+    print(f"Missing arg1: {arg1_missing}")
+    print(f"Missing arg2: {arg2_missing}")
+    print(f"Both missing: {both_missing}")
     return data
 
 
@@ -2191,7 +2202,7 @@ def load_dataset():
     dataset = create_datafield(
         f"/projects/flow_graphs/data/{args.dataset}",
         [
-            "train",
+            "train", "dev", "test"
         ],
         bert_model="bert-base-uncased",
         text_tokenizer="scispacy",

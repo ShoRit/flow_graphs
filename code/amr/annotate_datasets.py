@@ -34,7 +34,7 @@ def load_corpus(corpus_name, split):
 
 
 def align_graph(graph, sentence, aligner):
-    if "amr-empty" in graph.triples[0]:
+    if "amr-empty" in graph.triples[0] or None in graph.triples[0]:
         return None
     aligned_graphs, _ = aligner.align_sents([sentence], [penman.encode(graph)])
     return penman.decode(aligned_graphs[0])
@@ -78,19 +78,18 @@ def annotate_sentences(
     return aligned_graphs, sentences_split, aligned_tokens
 
 
-def annotate_corpus(corpus_name, split, amr_model):
+def annotate_corpus(corpus_name, split, amr_model, output_base_path):
     instances = load_corpus(corpus_name, split)
     segmented = [sentencizer(instance) for instance in instances]
     all_graphs = []
-    all_texts = []
 
     aligner = FAA_Aligner()
 
     for segmented_batch in tqdm(segmented):
         graphs = amr_model.parse_sents(segmented_batch, disable_progress=False, return_penman=True)
-        lemma_graphs = [add_lemmas(penman.encode(graph), snt_key="snt") for graph in graphs]
         aligned_graphs = [
-            align_graph(graph, text, aligner) for graph, text in zip(graphs, segmented_batch)
+            align_graph(graph, text, aligner) if graph is not None else None
+            for graph, text in zip(graphs, segmented_batch)
         ]
         all_graphs.append(
             [
@@ -98,15 +97,20 @@ def annotate_corpus(corpus_name, split, amr_model):
                     "graph": graph,
                     "text": text,
                 }
-                for text, graph, lemma_graph in zip(segmented_batch, aligned_graphs, lemma_graphs)
+                for text, graph in zip(segmented_batch, aligned_graphs)
             ]
         )
-    with open(os.path.join(DATASET_BASE_PATH, corpus_name, f"amr_{split}.pkl"), "wb") as f:
+    with open(os.path.join(output_base_path, corpus_name, f"amr_{split}.pkl"), "wb") as f:
         pickle.dump(all_graphs, f)
 
 
 def annotate_corpora(
-    model_path, datasets: Optional[List[str]] = None, splits="all", device=None, batch_size=4
+    model_path,
+    datasets: Optional[List[str]] = None,
+    splits="all",
+    device=None,
+    batch_size=4,
+    output_base_path=DATASET_BASE_PATH,
 ):
     amr_model = load_stog_model(model_path, device=device, batch_size=batch_size)
     if datasets is None:
@@ -116,11 +120,7 @@ def annotate_corpora(
     for dataset in datasets:
         for split in splits:
             print(f"Annotating {dataset}/{split}")
-            # try:
-            annotate_corpus(dataset, split, amr_model)
-        # except:
-        #     print(f"Failed to annotate {dataset}")
-        #     pass
+            annotate_corpus(dataset, split, amr_model, output_base_path)
 
 
 if __name__ == "__main__":
