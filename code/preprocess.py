@@ -2201,9 +2201,7 @@ def load_dataset():
 
     dataset = create_datafield(
         f"/projects/flow_graphs/data/{args.dataset}",
-        [
-            "train", "dev", "test"
-        ],
+        ["train", "dev", "test"],
         bert_model="bert-base-uncased",
         text_tokenizer="scispacy",
     )
