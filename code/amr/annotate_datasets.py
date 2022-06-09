@@ -36,7 +36,11 @@ def load_corpus(corpus_name, split):
 def align_graph(graph, sentence, aligner):
     if "amr-empty" in graph.triples[0] or None in graph.triples[0]:
         return None
-    aligned_graphs, _ = aligner.align_sents([sentence], [penman.encode(graph)])
+    try:
+        aligned_graphs, _ = aligner.align_sents([sentence], [penman.encode(graph)])
+    except AttributeError as e:
+        print(f"\nFailed to align sentence:\n\n{sentence}\n\nError: {e}")
+        return None
     return penman.decode(aligned_graphs[0])
 
 
