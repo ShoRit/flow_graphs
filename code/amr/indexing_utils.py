@@ -20,3 +20,30 @@ def compute_token_overlap_range(
     else:
         overlap_range_end = overlapping_offset_indices[-1]
     return (overlap_range_start, overlap_range_end)
+
+
+
+def get_overlapping_sentences_and_amrs(amr_content, target_string)
+    target_string = target_string.replace("\n", " ")]
+    current_idx = 0
+
+    for parsed_sentence in amr_content:
+        source_string = parsed_sentence["text"]
+        amr = parsed_sentence["graph"]
+
+        
+
+    texts, amrs = zip(
+        *[
+            (parsed_sentence["text"], parsed_sentence["graph"])
+            for parsed_sentence in amr_content
+            if parsed_sentence["text"].strip()
+            and parsed_sentence["text"]
+            in sent_str.replace(
+                "\n", " "
+            )  # this mimics how the AMRs were preprocessed. I know it's extremely ad-hoc. I'm sorry.
+        ]
+    )
+
+    return texts, amrs
+    

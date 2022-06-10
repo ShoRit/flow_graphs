@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pad_sequence
 
 from amr.annotate_datasets import align_tokens_to_sentence
 from amr.create_amr_rel2id import UNKNOWN_RELATION
-from amr.indexing_utils import compute_token_overlap_range
+from amr.indexing_utils import compute_token_overlap_range, get_overlapping_sentences_and_amrs
 from helper import *
 from intervals import *
 
@@ -1551,6 +1551,10 @@ def create_datafield(
             parsed_amrs = pickle.load(f)
         # docs 		= json.load(open(f'{data_dir}/parses_{split}.json'))
         for count, (doc, amr_content) in enumerate(zip(docs, parsed_amrs)):
+
+            if count < 30:
+                continue
+
             print(f"Done for {count}/{len(docs)}", end="\r")
             rel_map = {}
             lbl_cnt = ddict(int)
@@ -1857,17 +1861,10 @@ def create_datafield(
 
                 # AMR Parsing/construction
                 ##################################################
-                split_sentences, aligned_amrs = zip(
-                    *[
-                        (parsed_sentence["text"], parsed_sentence["graph"])
-                        for parsed_sentence in amr_content
-                        if parsed_sentence["text"].strip()
-                        and parsed_sentence["text"]
-                        in sent_str.replace(
-                            "\n", " "
-                        )  # this mimics how the AMRs were preprocessed. I know it's extremely ad-hoc. I'm sorry.
-                    ]
-                )
+
+                # TODO: this absolutely needs to be fixed: we cannot use the "in" test, it's really imprecise.
+                # look at index 64 of japflow test
+                split_sentences, aligned_amrs = get_overlapping_sentences_and_amrs(amr_content, sent_str)
 
                 amr_relation_encoding = load_amr_rel2id()
                 aligned_tokens = [
@@ -1882,7 +1879,8 @@ def create_datafield(
                 sentence_offsets = [0]
                 acc = 0
                 for sentence in split_sentences[:-1]:
-                    acc = acc + len(sentence)
+                    # making an assumption here: that sentences are space-separated in the actual text
+                    acc = acc + len(sentence) + 1
                     sentence_offsets.append(acc)
 
                 amr_node_dict = {}
@@ -1899,6 +1897,10 @@ def create_datafield(
                     zip(aligned_amrs, aligned_tokens, sentence_offsets)
                 ):
                     if amr_graph is None:
+                        continue
+                    if sentence_offset >= len(sent_str):
+                        # this condition accounts for where there is a duplicate sentence that passes the crude `in sent_str` filter above,
+                        # but is not actually in `sent_str`. Example: repeated sentences.
                         continue
                     alignments = penman.surface.alignments(amr_graph)
                     for triple in amr_graph.triples:
@@ -2024,6 +2026,12 @@ def create_datafield(
 
                 ## Add the top node in
                 for sentence_idx in range(len(split_sentences)):
+                    if aligned_amrs[sentence_idx] is None:
+                        continue
+                    if sentence_offsets[sentence_idx] >= len(sent_str):
+                        # this condition accounts for where there is a duplicate sentence that passes the crude `in sent_str` filter above,
+                        # but is not actually in `sent_str`. Example: repeated sentences.
+                        continue
                     amr_edge_index[0].append(amr_node_dict[(sentence_idx, "z1")])
                     amr_edge_index[1].append(amr_node_dict[(-1, -1)])
                     amr_edge_types.append(amr_relation_encoding["STAR"])
@@ -2201,7 +2209,7 @@ def load_dataset():
 
     dataset = create_datafield(
         f"/projects/flow_graphs/data/{args.dataset}",
-        ["train", "dev", "test"],
+        ["test", "train"],
         bert_model="bert-base-uncased",
         text_tokenizer="scispacy",
     )
