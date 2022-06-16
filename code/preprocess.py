@@ -1552,6 +1552,9 @@ def create_datafield(
         # docs 		= json.load(open(f'{data_dir}/parses_{split}.json'))
         for count, (doc, amr_content) in enumerate(zip(docs, parsed_amrs)):
 
+            # if count < 119:
+            #     continue
+
             print(f"Done for {count}/{len(docs)}", end="\r")
             rel_map = {}
             lbl_cnt = ddict(int)
@@ -1868,7 +1871,7 @@ def create_datafield(
                 amr_relation_encoding = load_amr_rel2id()
                 aligned_tokens = [
                     align_tokens_to_sentence(
-                        [token for token in sentence.split(" ") if token.strip()], sentence
+                        [token for token in re.split("\s", sentence) if token.strip()], sentence
                     )
                     for sentence in split_sentences
                 ]
@@ -2206,9 +2209,16 @@ def load_dataset():
     # dataset 	= create_datafield(f'/projects/flow_graphs/data/{args.dataset}/',['train','dev','test'], bert_model ='bert-base-uncased', text_tokenizer='scispacy')
     # dump_dill(dataset, f'/projects/flow_graphs/data/{args.dataset}/data.dill')
 
+    splits = {
+        "risec": ["train", "dev", "test"],
+        "japflow": ["train", "test"],
+        "chemu": ["train", "dev", "test"],
+        "mscorpus": ["train", "dev", "test"],
+    }[dataset]
+
     dataset = create_datafield(
         f"/projects/flow_graphs/data/{args.dataset}",
-        ["test", "train"],
+        splits,
         bert_model="bert-base-uncased",
         text_tokenizer="scispacy",
     )
