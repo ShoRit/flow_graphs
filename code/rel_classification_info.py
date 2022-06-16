@@ -189,9 +189,9 @@ def seen_eval(model, loader, device):
 
 def main(args):
     device = seed_everything()
-    src_dir = f"../data/{args.src_dataset}"
+    src_dir = f"/projects/flow_graphs/data/{args.src_dataset}"
     src_file = f"{src_dir}/data_amr.dill"
-    tgt_dir = f"../data/{args.tgt_dataset}"
+    tgt_dir = f"/projects/flow_graphs/data/{args.tgt_dataset}"
     tgt_file = f"{tgt_dir}/data_amr.dill"
 
     omit_rels = args.omit_rels.split(",")

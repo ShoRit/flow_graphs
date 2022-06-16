@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from amr.annotate_datasets import PenmanToken
+from amr.annotate_datasets import PenmanToken, sentencizer
 
 
 def compute_token_overlap_range(
@@ -15,35 +15,32 @@ def compute_token_overlap_range(
         ):
             overlapping_offset_indices.append(i)
     overlap_range_start = overlapping_offset_indices[0]
+    # add 1 in both of these cases because range end indices are exclusive
     if overlapping_offset_indices[0] == overlapping_offset_indices[-1]:
         overlap_range_end = overlap_range_start + 1
     else:
-        overlap_range_end = overlapping_offset_indices[-1]
+        overlap_range_end = overlapping_offset_indices[-1] + 1
     return (overlap_range_start, overlap_range_end)
 
 
 
-def get_overlapping_sentences_and_amrs(amr_content, target_string)
-    target_string = target_string.replace("\n", " ")]
-    current_idx = 0
+def get_overlapping_sentences_and_amrs(amr_content, target_string):
+    target_sentences = sentencizer(target_string)
+    overlapping_sentences  = []
+    overlapping_amrs = []
 
     for parsed_sentence in amr_content:
         source_string = parsed_sentence["text"]
         amr = parsed_sentence["graph"]
 
+        if not target_sentences:
+            break
+
+        if source_string == target_sentences[0]:
+            target_sentences.pop(0)
+            overlapping_sentences.append(source_string)
+            overlapping_amrs.append(amr)
+
+    return overlapping_sentences, overlapping_amrs
         
-
-    texts, amrs = zip(
-        *[
-            (parsed_sentence["text"], parsed_sentence["graph"])
-            for parsed_sentence in amr_content
-            if parsed_sentence["text"].strip()
-            and parsed_sentence["text"]
-            in sent_str.replace(
-                "\n", " "
-            )  # this mimics how the AMRs were preprocessed. I know it's extremely ad-hoc. I'm sorry.
-        ]
-    )
-
-    return texts, amrs
     

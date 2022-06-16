@@ -1552,9 +1552,6 @@ def create_datafield(
         # docs 		= json.load(open(f'{data_dir}/parses_{split}.json'))
         for count, (doc, amr_content) in enumerate(zip(docs, parsed_amrs)):
 
-            if count < 30:
-                continue
-
             print(f"Done for {count}/{len(docs)}", end="\r")
             rel_map = {}
             lbl_cnt = ddict(int)
@@ -1864,7 +1861,9 @@ def create_datafield(
 
                 # TODO: this absolutely needs to be fixed: we cannot use the "in" test, it's really imprecise.
                 # look at index 64 of japflow test
-                split_sentences, aligned_amrs = get_overlapping_sentences_and_amrs(amr_content, sent_str)
+                split_sentences, aligned_amrs = get_overlapping_sentences_and_amrs(
+                    amr_content, sent_str
+                )
 
                 amr_relation_encoding = load_amr_rel2id()
                 aligned_tokens = [
