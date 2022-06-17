@@ -281,17 +281,19 @@ class ZSBert_RGCN(BertPreTrainedModel):
 		pooled_output = self.fc_layer(pooled_output)
 		relation_embeddings = torch.tanh(pooled_output)
 		# relation_embeddings = self.dropout(relation_embeddings)
-		logits = self.rel_classifier(relation_embeddings) # [batch_size x hidden_size]
-		outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
-
+		 # [batch_size x hidden_size]
+   
 		output_dict = {}
-		output_dict['logits'] = logits
+		output_dict['logits'] = None
 		output_dict['hidden_states'] = outputs[2:]
 		output_dict['loss']	  = None
 		output_dict['relation_embeddings'] = relation_embeddings
 
 
 		if labels is not None:
+			logits = self.rel_classifier(relation_embeddings)
+			output_dict['logits'] = logits
+   
 			gamma = self.margin.to(device)
 			ce_loss = nn.CrossEntropyLoss()
 			loss = (ce_loss(logits.view(-1, self.num_labels), labels.view(-1))) * self.alpha

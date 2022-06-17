@@ -2173,6 +2173,16 @@ def create_mini_batch_orig(samples):
     )
 
 
+def create_fewshot_data():
+    for dataset in ["risec", "japflow", "mscorpus", "chemu"]:
+        data = load_dill(f"../data/{dataset}/data.dill")
+        rels_data = list(data["train"]["rels"])
+        random.shuffle(rels_data)
+        for fewshot in [0.01, 0.05, 0.1, 0.2, 0.5]:
+            data["train"]["rels"] = rels_data[0 : int(len(rels_data) * fewshot)]
+            dump_dill(data, f"../data/{dataset}/data-{fewshot}.dill")
+
+
 def create_dataset():
     if args.dataset == "risec":
         create_risec()
@@ -2240,6 +2250,8 @@ if __name__ == "__main__":
         create_dataset()
     elif args.step == "load":
         load_dataset()
+    elif args.step == "fewshot":
+        create_fewshot_data()
     elif args.step == "rel_emb":
         generate_reldesc()
     elif args.step == "parse":
