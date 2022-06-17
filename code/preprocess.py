@@ -5,6 +5,7 @@ import penman
 import spacy
 import stanza
 from torch.nn.utils.rnn import pad_sequence
+from tqdm.auto import tqdm
 
 from amr.annotate_datasets import align_tokens_to_sentence
 from amr.create_amr_rel2id import UNKNOWN_RELATION
@@ -891,7 +892,7 @@ def dump_srls(data_dir, splits, text_tokenizer="scispacy"):
     srl_sents = set()
     for split in splits:
         docs = json.load(open(f"{data_dir}/{split}.json"))
-        for count, doc in enumerate(docs):
+        for count, doc in tqdm(enumerate(docs)):
             print(f"Done for {count}/{len(docs)}", end="\r")
             rel_map = {}
             lbl_cnt = ddict(int)
@@ -1550,12 +1551,10 @@ def create_datafield(
         with open(f"{data_dir}/amr_{split}.pkl", "rb") as f:
             parsed_amrs = pickle.load(f)
         # docs 		= json.load(open(f'{data_dir}/parses_{split}.json'))
-        for count, (doc, amr_content) in enumerate(zip(docs, parsed_amrs)):
+        for count, (doc, amr_content) in tqdm(enumerate(zip(docs, parsed_amrs))):
 
             # if count < 119:
             #     continue
-
-            print(f"Done for {count}/{len(docs)}", end="\r")
             rel_map = {}
             lbl_cnt = ddict(int)
             interdict = ddict(list)
@@ -1925,7 +1924,9 @@ def create_datafield(
                                 (amr_node_dict[(sentence_idx, s)], amr_node_dict[(sentence_idx, t)])
                             )
                             amr_edge_types.append(
-                                amr_relation_encoding.get(r.lower(), UNKNOWN_RELATION)
+                                amr_relation_encoding.get(
+                                    r.lower(), amr_relation_encoding[UNKNOWN_RELATION]
+                                )
                             )
 
                         ## Map the nodes of the graph to BERT tokens and relations
