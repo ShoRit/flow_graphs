@@ -28,12 +28,8 @@ def seed_everything():
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--src_dataset", help="choice of src_dataset", type=str, default="risec"
-    )
-    parser.add_argument(
-        "--tgt_dataset", help="choice of tgt_dataset", type=str, default="japflow"
-    )
+    parser.add_argument("--src_dataset", help="choice of src_dataset", type=str, default="risec")
+    parser.add_argument("--tgt_dataset", help="choice of tgt_dataset", type=str, default="japflow")
     parser.add_argument("--mode", help="choice of operation", type=str, default="eval")
     parser.add_argument(
         "--domain",
@@ -49,13 +45,9 @@ def get_args():
     )
     parser.add_argument("--seed", help="random seed", type=int, default=300)
     parser.add_argument("--gpu", help="choice of device", type=str, default="0")
-    parser.add_argument(
-        "--n_unseen", help="number of unseen classes", type=int, default=10
-    )
+    parser.add_argument("--n_unseen", help="number of unseen classes", type=int, default=10)
     parser.add_argument("--gamma", help="margin factor gamma", type=float, default=7.5)
-    parser.add_argument(
-        "--alpha", help="balance coefficient alpha", type=float, default=0.5
-    )
+    parser.add_argument("--alpha", help="balance coefficient alpha", type=float, default=0.5)
     parser.add_argument(
         "--dist_func", help="distance computing function", type=str, default="cosine"
     )
@@ -105,9 +97,7 @@ def main(args):
     if check_file(src_file):
         src_dataset, _ = load_dill(src_file)
     else:
-        src_dataset = create_datafield(
-            src_dir, ["train", "dev", "test"], args.bert_model
-        )
+        src_dataset = create_datafield(src_dir, ["train", "dev", "test"], args.bert_model)
         dump_dill(src_dataset, src_file)
 
     if check_file(tgt_file):
@@ -140,9 +130,7 @@ def main(args):
     print("Data is successfully loaded")
     train_label = [data["label"] for data in train_data]
 
-    bertconfig = BertConfig.from_pretrained(
-        args.bert_model, num_labels=len(set(train_label))
-    )
+    bertconfig = BertConfig.from_pretrained(args.bert_model, num_labels=len(set(train_label)))
 
     if "bert-large" in args.bert_model:
         bertconfig.relation_emb_dim = 1024
@@ -179,9 +167,7 @@ def main(args):
         dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_lbl_features(
             dev_data, rel2desc_emb
         )
-        devset = ZSBertRelDataset(
-            dev_data, dev_lbl2id, tokenizer, args, domain=args.domain
-        )  # 'tgt
+        devset = ZSBertRelDataset(dev_data, dev_lbl2id, tokenizer, args, domain=args.domain)  # 'tgt
         devloader = DataLoader(
             devset, batch_size=args.batch_size, collate_fn=create_mini_batch_orig
         )
@@ -228,23 +214,13 @@ def main(args):
 
                 # if step % 1000 == 0: print(f'[step {step}]' + '=' * (step//1000))
 
-            print(
-                f'train acc: {correct/total}, f1 : {f1_score(y_true,y_pred, average="macro")}'
-            )
+            print(f'train acc: {correct/total}, f1 : {f1_score(y_true,y_pred, average="macro")}')
 
             print("============== EVALUATION ON DEV DATA ==============")
 
-            preds = (
-                extract_relation_emb(model, devloader, device=device, args=args)
-                .cpu()
-                .numpy()
-            )
-            pt, rt, f1t, h_K = evaluate(
-                preds, dev_y_attr, dev_y, dev_idxmap, args.dist_func
-            )
-            print(
-                f"[val] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K :{h_K}"
-            )
+            preds = extract_relation_emb(model, devloader, device=device, args=args).cpu().numpy()
+            pt, rt, f1t, h_K = evaluate(preds, dev_y_attr, dev_y, dev_idxmap, args.dist_func)
+            print(f"[val] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K :{h_K}")
 
             if f1t > best_f1:
                 best_p, best_r, best_f1 = pt, rt, f1t
@@ -278,11 +254,7 @@ def main(args):
             testset, batch_size=args.batch_size, collate_fn=create_mini_batch_orig
         )
         model = torch.load(checkpoint_file)
-        preds = (
-            extract_relation_emb(model, testloader, device=device, args=args)
-            .cpu()
-            .numpy()
-        )
+        preds = extract_relation_emb(model, testloader, device=device, args=args).cpu().numpy()
         pt, rt, f1t, h_K = evaluate(
             preds,
             test_y_attr,

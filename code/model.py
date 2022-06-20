@@ -47,16 +47,12 @@ class ZSBert(BertPreTrainedModel):
         )
 
         sequence_output = outputs[0]  # Sequence of hidden-states of the last layer.
-        pooled_output = outputs[
-            1
-        ]  # Last layer hidden-state of the [CLS] token further processed
+        pooled_output = outputs[1]  # Last layer hidden-state of the [CLS] token further processed
         # by a Linear layer and a Tanh activation function.
 
         def extract_entity(sequence_output, e_mask):
             extended_e_mask = e_mask.unsqueeze(1)
-            extended_e_mask = torch.bmm(
-                extended_e_mask.float(), sequence_output
-            ).squeeze(1)
+            extended_e_mask = torch.bmm(extended_e_mask.float(), sequence_output).squeeze(1)
             return extended_e_mask.float()
 
         e1_h = extract_entity(sequence_output, e1_mask)
@@ -68,17 +64,13 @@ class ZSBert(BertPreTrainedModel):
         relation_embeddings = torch.tanh(pooled_output)
         # relation_embeddings = self.dropout(relation_embeddings)
         logits = self.classifier(relation_embeddings)  # [batch_size x hidden_size]
-        outputs = (logits,) + outputs[
-            2:
-        ]  # add hidden states and attention if they are here
+        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
 
         if labels is not None:
             # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
             gamma = self.margin.to(device)
             ce_loss = nn.CrossEntropyLoss()
-            loss = (
-                ce_loss(logits.view(-1, self.num_labels), labels.view(-1))
-            ) * self.alpha
+            loss = (ce_loss(logits.view(-1, self.num_labels), labels.view(-1))) * self.alpha
             zeros = torch.tensor(0.0).to(device)
             for a, b in enumerate(relation_embeddings):
                 max_val = torch.tensor(0.0).to(device)
@@ -257,9 +249,7 @@ class ZSBert_RGCN(BertPreTrainedModel):
         )
 
         sequence_output = outputs[0]  # Sequence of hidden-states of the last layer.
-        pooled_output = outputs[
-            1
-        ]  # Last layer hidden-state of the [CLS] token further processed
+        pooled_output = outputs[1]  # Last layer hidden-state of the [CLS] token further processed
         # by a Linear layer and a Tanh activation function.
         context = self.dropout(pooled_output)
 
@@ -281,15 +271,11 @@ class ZSBert_RGCN(BertPreTrainedModel):
                 bids = np.where(batch_np == idx)[0]
                 sid, eid = bids[0], bids[-1] + 1
                 graph_embs.append(
-                    torch.max(
-                        sequence_output[idx] + graph_data.x[sid:eid, :, None], dim=1
-                    )[0]
+                    torch.max(sequence_output[idx] + graph_data.x[sid:eid, :, None], dim=1)[0]
                 )
 
             graph_embs = torch.vstack(graph_embs)
-            graph_embs = self.gnn(
-                graph_embs, graph_data.edge_index, graph_data.edge_type
-            )
+            graph_embs = self.gnn(graph_embs, graph_data.edge_index, graph_data.edge_type)
 
             # n1_mask, n2_mask, batch     = graph_data.n1_mask, graph_data.n2_mask, graph_data.batch
 
@@ -326,9 +312,7 @@ class ZSBert_RGCN(BertPreTrainedModel):
 
             gamma = self.margin.to(device)
             ce_loss = nn.CrossEntropyLoss()
-            loss = (
-                ce_loss(logits.view(-1, self.num_labels), labels.view(-1))
-            ) * self.alpha
+            loss = (ce_loss(logits.view(-1, self.num_labels), labels.view(-1))) * self.alpha
             zeros = torch.tensor(0.0).to(device)
             for a, b in enumerate(relation_embeddings):
                 max_val = torch.tensor(0.0).to(device)

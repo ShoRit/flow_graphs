@@ -331,9 +331,7 @@ def create_japflow():
             pdb.set_trace()
             print(relfile)
 
-        data_dict["all"].append(
-            {"_id": doc_id, "text": text, "anns": anns, "rels": rels}
-        )
+        data_dict["all"].append({"_id": doc_id, "text": text, "anns": anns, "rels": rels})
         for elem in anns:
             ent_lbls.append(elem["label"])
         for elem in rels:
@@ -817,9 +815,7 @@ def get_srl_parses(srls=None):
             if i == j:
                 continue
             vn_j, start_j, end_j = verb_names[j], verb_start_idxs[j], verb_end_idxs[j]
-            srl_elems = [
-                elem for elem in srl_graph if elem["root_start_idx"] == start_i
-            ]
+            srl_elems = [elem for elem in srl_graph if elem["root_start_idx"] == start_i]
             for elem in srl_elems:
                 if elem["start_idx"] <= start_j and elem["end_idx"] > end_j:
                     curr_dict = {
@@ -910,9 +906,7 @@ def dump_srls(data_dir, splits, text_tokenizer="scispacy"):
 
             # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
             sent_idxs = [0] + [sent.end_char for sent in sents]
-            sent_ints = [
-                (sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)
-            ]
+            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
             rel_ints = sorted(rel_map)
 
             for rel_start, rel_end in rel_ints:
@@ -1019,9 +1013,7 @@ def dump_amrs(data_dir, splits, bert_model, text_tokenizer="scispacy"):
 
             # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
             sent_idxs = [0] + [sent.end_char for sent in sents]
-            sent_ints = [
-                (sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)
-            ]
+            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
             rel_ints = sorted(rel_map)
 
             for rel_start, rel_end in rel_ints:
@@ -1378,9 +1370,7 @@ def add_parses(data_dir, splits, text_tokenizer="scispacy"):
 
             # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
             sent_idxs = [0] + [sent.end_char for sent in sents]
-            sent_ints = [
-                (sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)
-            ]
+            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
             rel_ints = sorted(rel_map)
 
             for rel_start, rel_end in rel_ints:
@@ -1438,9 +1428,9 @@ def add_parses(data_dir, splits, text_tokenizer="scispacy"):
                     assert sent_str[arg2_start_idx:arg2_end_idx] == arg2_word
                 except Exception as e:
                     try:
-                        arg1_start_idx, arg2_start_idx = sent_str.index(
-                            arg1_word
-                        ), sent_str.index(arg2_word)
+                        arg1_start_idx, arg2_start_idx = sent_str.index(arg1_word), sent_str.index(
+                            arg2_word
+                        )
                         arg1_end_idx, arg2_end_idx = arg1_start_idx + len(
                             arg1_word
                         ), arg2_start_idx + len(arg2_word)
@@ -1460,21 +1450,13 @@ def add_parses(data_dir, splits, text_tokenizer="scispacy"):
                             word.deprel,
                         )
 
-                        if (
-                            word.start_char >= arg1_start_idx
-                            and word.end_char <= arg1_end_idx
-                        ):
+                        if word.start_char >= arg1_start_idx and word.end_char <= arg1_end_idx:
                             dep_val = 1
-                        elif (
-                            word.start_char >= arg2_start_idx
-                            and word.end_char <= arg2_end_idx
-                        ):
+                        elif word.start_char >= arg2_start_idx and word.end_char <= arg2_end_idx:
                             dep_val = 2
                         else:
                             dep_val = 0
-                        dep_arr.append(
-                            (word_id, word_head, word_text, word_deprel, dep_val)
-                        )
+                        dep_arr.append((word_id, word_head, word_text, word_deprel, dep_val))
 
                 predictor = predictors.SrlTransformersPredictor.from_path(
                     "/projects/flow_graphs/models/srl_bert_base_conll2012.tar.gz",
@@ -1569,9 +1551,7 @@ def create_datafield(
                 )
 
             sent_idxs = [0] + [max([tok.idx for tok in sent]) for sent in sents]
-            sent_ints = [
-                (sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)
-            ]
+            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
             rel_ints = sorted(rel_map)
 
             for rel_start, rel_end in rel_ints:
@@ -1654,9 +1634,7 @@ def create_datafield(
                 arg2_ann_map[e2_start:e2_end] = (e2_start, e2_end, arg2_label)
                 # bw_arg_ann_map[min(e1_start, e2_start): max(e2_end, e1_end)]
 
-                sent_toks = tokenizer(
-                    sent_str, return_offsets_mapping=True, max_length=512
-                )
+                sent_toks = tokenizer(sent_str, return_offsets_mapping=True, max_length=512)
                 bert_toks = sent_toks["input_ids"]
                 tok_range = sent_toks["offset_mapping"]
 
@@ -1776,9 +1754,7 @@ def create_datafield(
 
                 for sent_num in range(num_sents):
                     tok_idxs = [
-                        node_idx_dict[elem]
-                        for elem in node_idx_dict
-                        if elem[0] == sent_num
+                        node_idx_dict[elem] for elem in node_idx_dict if elem[0] == sent_num
                     ]
                     min_tok_idx = min([tok_idx[0] for tok_idx in tok_idxs])
                     max_tok_idx = max([tok_idx[1] for tok_idx in tok_idxs])
@@ -1876,9 +1852,7 @@ def create_datafield(
             rels_data = list(data[split]["rels"])
             random.shuffle(rels_data)
             data["train"]["rels"] = rels_data[0 : int(len(rels_data) * 0.8)]
-            data["dev"]["rels"] = rels_data[
-                int(len(rels_data) * 0.8) : int(len(rels_data) * 0.9)
-            ]
+            data["dev"]["rels"] = rels_data[int(len(rels_data) * 0.8) : int(len(rels_data) * 0.9)]
             data["test"]["rels"] = rels_data[int(len(rels_data) * 0.9) :]
 
     return data
@@ -1984,9 +1958,7 @@ def create_dataset():
 def create_parses():
     if args.dataset == "risec":
         if args.parse == "srl":
-            dump_srls(
-                "../data/risec/", ["train", "dev", "test"], text_tokenizer="scispacy"
-            )
+            dump_srls("../data/risec/", ["train", "dev", "test"], text_tokenizer="scispacy")
         elif args.parse == "amr":
             dump_amrs(
                 "../data/risec/",
@@ -2021,9 +1993,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for analysis")
     parser.add_argument("--step", required=True, help="Which function to call")
     parser.add_argument("--dataset", default="risec", help="Which dataset")
-    parser.add_argument(
-        "--parse", default="amr", help="Type of parse afforded by the model"
-    )
+    parser.add_argument("--parse", default="amr", help="Type of parse afforded by the model")
     args = parser.parse_args()
 
     if args.step == "create":

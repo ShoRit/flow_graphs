@@ -12,12 +12,8 @@ class ZSBertRelDataset(Dataset):
         self.p = params
         self.tokenizer = tokenizer
         self.data_idx = data_idx
-        self.cls_tok = self.tokenizer.convert_tokens_to_ids(
-            self.tokenizer.tokenize("[CLS]")
-        )
-        self.sep_tok = self.tokenizer.convert_tokens_to_ids(
-            self.tokenizer.tokenize("[SEP]")
-        )
+        self.cls_tok = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize("[CLS]"))
+        self.sep_tok = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize("[SEP]"))
         self.domain = domain
 
     def __len__(self):
@@ -55,15 +51,9 @@ class ZSBert_RGCN_RelDataset(Dataset):
     def __getitem__(self, idx):
         ele = self.dataset[idx]
 
-        tokens = torch.tensor(
-            ele["tokens"] + [0] * (self.p.max_seq_len - len(ele["tokens"]))
-        )
-        marked_1 = torch.tensor(
-            ele["arg1_ids"] + [0] * (self.p.max_seq_len - len(ele["tokens"]))
-        )
-        marked_2 = torch.tensor(
-            ele["arg2_ids"] + [0] * (self.p.max_seq_len - len(ele["tokens"]))
-        )
+        tokens = torch.tensor(ele["tokens"] + [0] * (self.p.max_seq_len - len(ele["tokens"])))
+        marked_1 = torch.tensor(ele["arg1_ids"] + [0] * (self.p.max_seq_len - len(ele["tokens"])))
+        marked_2 = torch.tensor(ele["arg2_ids"] + [0] * (self.p.max_seq_len - len(ele["tokens"])))
         segments = torch.tensor([0] * len(tokens))
         desc_emb = ele["desc_emb"]
         dep_data = ele["dep_data"]

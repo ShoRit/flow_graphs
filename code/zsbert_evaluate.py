@@ -77,9 +77,7 @@ def extract_relation_emb(model, testloader, device):
         if out_relation_embs is None:
             out_relation_embs = outputs_dict["relation_embeddings"]
         else:
-            out_relation_embs = torch.cat(
-                (out_relation_embs, outputs_dict["relation_embeddings"])
-            )
+            out_relation_embs = torch.cat((out_relation_embs, outputs_dict["relation_embeddings"]))
 
     return out_relation_embs
 
@@ -108,9 +106,7 @@ def get_hits(y_label, tree, preds, k):
     return hits / len(y_label)
 
 
-def evaluate(
-    preds, y_attr, y_label, idxmap, dist_func="inner", lbl2id=None, num_neighbors=1
-):
+def evaluate(preds, y_attr, y_label, idxmap, dist_func="inner", lbl2id=None, num_neighbors=1):
     assert dist_func in ["inner", "euclidian", "cosine"]
     if dist_func == "inner":
         tree = NearestNeighbors(
@@ -134,11 +130,7 @@ def evaluate(
     H_K = get_hits(y_label, tree, preds, num_neighbors)
 
     if lbl2id is not None:
-        print(
-            classification_report(
-                y_label, predictions, target_names=[i for i in lbl2id]
-            )
-        )
+        print(classification_report(y_label, predictions, target_names=[i for i in lbl2id]))
 
     H_1 = get_hits(y_label, tree, preds, 1)
     H_2 = get_hits(y_label, tree, preds, 2)
