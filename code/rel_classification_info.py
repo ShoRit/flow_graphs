@@ -4,8 +4,19 @@ from preprocess import *
 from model import ZSBert, ZSBert_RGCN
 from torch.utils.data import DataLoader
 from zsbert_evaluate import extract_relation_emb, evaluate
-from transformers import AutoTokenizer, BertModel, BertConfig, BertPreTrainedModel, BertTokenizer
-from sklearn.metrics import classification_report, f1_score, precision_score, recall_score
+from transformers import (
+    AutoTokenizer,
+    BertModel,
+    BertConfig,
+    BertPreTrainedModel,
+    BertTokenizer,
+)
+from sklearn.metrics import (
+    classification_report,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 import wandb
 
 # wandb.login()
@@ -20,34 +31,51 @@ def seed_everything():
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    device = torch.device(f"cuda:{args.gpu}") if torch.cuda.is_available() else torch.device("cpu")
+    device = (
+        torch.device(f"cuda:{args.gpu}")
+        if torch.cuda.is_available()
+        else torch.device("cpu")
+    )
     return device
 
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--src_dataset", help="choice of src_dataset", type=str, default="risec")
-    parser.add_argument("--tgt_dataset", help="choice of tgt_dataset", type=str, default="japflow")
+    parser.add_argument(
+        "--src_dataset", help="choice of src_dataset", type=str, default="risec"
+    )
+    parser.add_argument(
+        "--tgt_dataset", help="choice of tgt_dataset", type=str, default="japflow"
+    )
     parser.add_argument("--mode", help="choice of operation", type=str, default="eval")
     parser.add_argument(
         "--domain", help="seen or unseen domain", type=str, default="src"
     )  # src -->
 
     parser.add_argument(
-        "--bert_model", help="choice of bert model  ", type=str, default="bert-base-uncased"
+        "--bert_model",
+        help="choice of bert model  ",
+        type=str,
+        default="bert-base-uncased",
     )
     parser.add_argument("--seed", help="random seed", type=int, default=0)
     parser.add_argument("--gpu", help="choice of device", type=str, default="0")
 
-    parser.add_argument("--node_emb_dim", help="number of unseen classes", type=int, default=768)
+    parser.add_argument(
+        "--node_emb_dim", help="number of unseen classes", type=int, default=768
+    )
     parser.add_argument("--dep", help="dependency_parsing", type=str, default="1")
     parser.add_argument("--amr", help="amr_parsing", type=str, default="0")
     parser.add_argument("--gnn", help="Choice of GNN used", type=str, default="rgcn")
     parser.add_argument("--gnn_depth", help="Depth of GNN used", type=int, default=2)
 
-    parser.add_argument("--n_unseen", help="number of unseen classes", type=int, default=10)
+    parser.add_argument(
+        "--n_unseen", help="number of unseen classes", type=int, default=10
+    )
     parser.add_argument("--gamma", help="margin factor gamma", type=float, default=7.5)
-    parser.add_argument("--alpha", help="balance coefficient alpha", type=float, default=0.5)
+    parser.add_argument(
+        "--alpha", help="balance coefficient alpha", type=float, default=0.5
+    )
     parser.add_argument(
         "--dist_func", help="distance computing function", type=str, default="cosine"
     )
@@ -234,7 +262,9 @@ def main(args):
     print("Data is successfully loaded")
     train_label = [data["label"] for data in train_data]
 
-    bertconfig = BertConfig.from_pretrained(args.bert_model, num_labels=len(set(train_label)))
+    bertconfig = BertConfig.from_pretrained(
+        args.bert_model, num_labels=len(set(train_label))
+    )
 
     if "bert-large" in args.bert_model:
         bertconfig.relation_emb_dim = 1024
@@ -252,23 +282,34 @@ def main(args):
     bertconfig.amr = args.amr
     bertconfig.gnn = args.gnn
 
+    print(bertconfig)
     model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
     model = model.to(device)
 
     if args.domain == "src":
         labels = sorted(list(set(train_label)))
         lbl2id = {lbl: idx for idx, lbl in enumerate(labels)}
-        train_y, train_idxmap, train_labels, train_y_attr, train_lbl2id = get_known_lbl_features(
-            train_data, rel2desc_emb, lbl2id
-        )
+        (
+            train_y,
+            train_idxmap,
+            train_labels,
+            train_y_attr,
+            train_lbl2id,
+        ) = get_known_lbl_features(train_data, rel2desc_emb, lbl2id)
     else:
-        train_y, train_idxmap, train_labels, train_y_attr, train_lbl2id = get_lbl_features(
-            train_data, rel2desc_emb
-        )
+        (
+            train_y,
+            train_idxmap,
+            train_labels,
+            train_y_attr,
+            train_lbl2id,
+        ) = get_lbl_features(train_data, rel2desc_emb)
 
     tokenizer = AutoTokenizer.from_pretrained(args.bert_model)
 
-    trainset = ZSBert_RGCN_RelDataset(train_data, train_lbl2id, tokenizer, args, domain="src")
+    trainset = ZSBert_RGCN_RelDataset(
+        train_data, train_lbl2id, tokenizer, args, domain="src"
+    )
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
@@ -297,16 +338,24 @@ def main(args):
         }
 
         if args.domain == "src":
-            dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_known_lbl_features(
-                dev_data, rel2desc_emb, lbl2id
-            )
+            (
+                dev_y,
+                dev_idxmap,
+                dev_labels,
+                dev_y_attr,
+                dev_lbl2id,
+            ) = get_known_lbl_features(dev_data, rel2desc_emb, lbl2id)
         else:
             dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_lbl_features(
                 dev_data, rel2desc_emb
             )
 
-        devset = ZSBert_RGCN_RelDataset(dev_data, dev_lbl2id, tokenizer, args, domain=args.domain)
-        devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
+        devset = ZSBert_RGCN_RelDataset(
+            dev_data, dev_lbl2id, tokenizer, args, domain=args.domain
+        )
+        devloader = DataLoader(
+            devset, batch_size=args.batch_size, collate_fn=create_mini_batch
+        )
         kill_cnt = 0
 
         wandb.log({"src data": args.src_dataset})
@@ -365,7 +414,9 @@ def main(args):
 
                 # if step % 1000 == 0: print(f'[step {step}]' + '=' * (step//1000))
 
-            print(f'train acc: {correct/total}, f1 : {f1_score(y_true,y_pred, average="macro")}')
+            print(
+                f'train acc: {correct/total}, f1 : {f1_score(y_true,y_pred, average="macro")}'
+            )
 
             print("============== EVALUATION ON DEV DATA ==============")
 
@@ -380,8 +431,12 @@ def main(args):
                 print(f"Eval data {f1t} \t Prec {pt} \t Rec {rt}")
 
             else:
-                preds = extract_relation_emb(model, devloader, device=device).cpu().numpy()
-                pt, rt, f1t, h_K = evaluate(preds, dev_y_attr, dev_y, dev_idxmap, args.dist_func)
+                preds = (
+                    extract_relation_emb(model, devloader, device=device).cpu().numpy()
+                )
+                pt, rt, f1t, h_K = evaluate(
+                    preds, dev_y_attr, dev_y, dev_idxmap, args.dist_func
+                )
                 print(
                     f"[val] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K :{h_K}"
                 )
@@ -405,16 +460,26 @@ def main(args):
         torch.save(best_model.state_dict(), checkpoint_file)
 
         if args.domain == "src":
-            test_y, test_idxmap, test_labels, test_y_attr, test_lbl2id = get_known_lbl_features(
-                test_data, rel2desc_emb, lbl2id
-            )
+            (
+                test_y,
+                test_idxmap,
+                test_labels,
+                test_y_attr,
+                test_lbl2id,
+            ) = get_known_lbl_features(test_data, rel2desc_emb, lbl2id)
         else:
-            test_y, test_idxmap, test_labels, test_y_attr, test_lbl2id = get_lbl_features(
-                test_data, rel2desc_emb
-            )
+            (
+                test_y,
+                test_idxmap,
+                test_labels,
+                test_y_attr,
+                test_lbl2id,
+            ) = get_lbl_features(test_data, rel2desc_emb)
 
         testset = ZSBert_RGCN_RelDataset(test_data, test_lbl2id, tokenizer, args)
-        testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
+        testloader = DataLoader(
+            testset, batch_size=args.batch_size, collate_fn=create_mini_batch
+        )
         best_model = best_model.to(device)
         best_model.eval()
         pt, rt, test_f1 = seen_eval(best_model, testloader, device=device)
@@ -425,62 +490,105 @@ def main(args):
             print("MODEL CANNOT BE LOADED BY THESE SPECIFICATIONS")
             return
         if args.domain == "src":
-            test_y, test_idxmap, test_labels, test_y_attr, test_lbl2id = get_known_lbl_features(
-                test_data, rel2desc_emb, lbl2id
-            )
+            (
+                test_y,
+                test_idxmap,
+                test_labels,
+                test_y_attr,
+                test_lbl2id,
+            ) = get_known_lbl_features(test_data, rel2desc_emb, lbl2id)
         else:
-            test_y, test_idxmap, test_labels, test_y_attr, test_lbl2id = get_lbl_features(
-                test_data, rel2desc_emb
-            )
+            (
+                test_y,
+                test_idxmap,
+                test_labels,
+                test_y_attr,
+                test_lbl2id,
+            ) = get_lbl_features(test_data, rel2desc_emb)
 
         testset = ZSBert_RGCN_RelDataset(test_data, test_lbl2id, tokenizer, args)
-        testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
+        testloader = DataLoader(
+            testset, batch_size=args.batch_size, collate_fn=create_mini_batch
+        )
 
-    if args.mode                                                        == 'batch_eval':
-        
-        if args.domain 													==	'src':
-            test_y, test_idxmap, test_labels, test_y_attr, test_lbl2id  = 	get_known_lbl_features(test_data, rel2desc_emb, lbl2id)
+    if args.mode == "batch_eval":
+
+        if args.domain == "src":
+            (
+                test_y,
+                test_idxmap,
+                test_labels,
+                test_y_attr,
+                test_lbl2id,
+            ) = get_known_lbl_features(test_data, rel2desc_emb, lbl2id)
         else:
-            test_y, test_idxmap, test_labels, test_y_attr, test_lbl2id  = 	get_lbl_features(test_data, rel2desc_emb)
-   
-        testset        							   					 	= 	ZSBert_RGCN_RelDataset(test_data, test_lbl2id, tokenizer, args, domain=args.domain)
-        testloader     							   					 	= 	DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
-  
-        model 															= 	ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
-        model       													= 	model.to(device)
-        
-        f1_arr, prec_arr, rec_arr, hits_arr                             =   [],[],[],[]
-        
-        for seed in range(0,3):
-            checkpoint_file 											=  f'../checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{seed}-lr_{args.lr}.pt'
+            (
+                test_y,
+                test_idxmap,
+                test_labels,
+                test_y_attr,
+                test_lbl2id,
+            ) = get_lbl_features(test_data, rel2desc_emb)
+
+        testset = ZSBert_RGCN_RelDataset(
+            test_data, test_lbl2id, tokenizer, args, domain=args.domain
+        )
+        testloader = DataLoader(
+            testset, batch_size=args.batch_size, collate_fn=create_mini_batch
+        )
+
+        model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
+        model = model.to(device)
+
+        f1_arr, prec_arr, rec_arr, hits_arr = [], [], [], []
+
+        for seed in range(0, 3):
+            checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{seed}-lr_{args.lr}.pt"
             model.load_state_dict(torch.load(checkpoint_file))
             model.eval()
-            
-            if args.domain 	=='src':
-                pt, rt, f1t 	 = seen_eval(model, testloader, device=device)
-                f1_arr.append(f1t); prec_arr.append(pt); rec_arr.append(rt)
+
+            if args.domain == "src":
+                pt, rt, f1t = seen_eval(model, testloader, device=device)
+                f1_arr.append(f1t)
+                prec_arr.append(pt)
+                rec_arr.append(rt)
             else:
-                preds       										    = extract_relation_emb(model, testloader, device=device).cpu().numpy()
-                pt, rt, f1t, h_K  									    = evaluate(preds, test_y_attr, test_y, test_idxmap, args.dist_func, test_lbl2id, num_neighbors=args.num_neighbors)
+                preds = (
+                    extract_relation_emb(model, testloader, device=device).cpu().numpy()
+                )
+                pt, rt, f1t, h_K = evaluate(
+                    preds,
+                    test_y_attr,
+                    test_y,
+                    test_idxmap,
+                    args.dist_func,
+                    test_lbl2id,
+                    num_neighbors=args.num_neighbors,
+                )
                 # print(f'[best test] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K : {h_K}')
-                f1_arr.append(f1t); prec_arr.append(pt); rec_arr.append(rt); hits_arr.append(h_K)
+                f1_arr.append(f1t)
+                prec_arr.append(pt)
+                rec_arr.append(rt)
+                hits_arr.append(h_K)
 
         wandb.login()
-        wandb.init(project="narrative-flow-eval", entity="flow-graphs-cmu", name=f'{checkpoint_file.split("/")[-1]}')
-        wandb.log({"f1": 		np.mean(f1_arr)})
-        wandb.log({"std_f1": 	np.std(f1_arr)})
+        wandb.init(
+            project="narrative-flow-eval",
+            entity="flow-graphs-cmu",
+            name=f'{checkpoint_file.split("/")[-1]}',
+        )
+        wandb.log({"f1": np.mean(f1_arr)})
+        wandb.log({"std_f1": np.std(f1_arr)})
         wandb.log({"precision": np.mean(prec_arr)})
-        wandb.log({"recall": 	np.mean(rec_arr)})
-        wandb.log({"dep": 		args.dep})
-        wandb.log({"bert": 		args.bert_model})
-        wandb.log({"src_dataset": 	args.src_dataset})
-        wandb.log({"tgt_dataset": 	args.tgt_dataset})
-        wandb.log({"amr": 	   args.amr})
-        wandb.log({"gnn": 	   args.gnn})
-        wandb.log({"gnn_depth":args.gnn_depth})
-        wandb.log({"alpha":    args.alpha})
-        
-
+        wandb.log({"recall": np.mean(rec_arr)})
+        wandb.log({"dep": args.dep})
+        wandb.log({"bert": args.bert_model})
+        wandb.log({"src_dataset": args.src_dataset})
+        wandb.log({"tgt_dataset": args.tgt_dataset})
+        wandb.log({"amr": args.amr})
+        wandb.log({"gnn": args.gnn})
+        wandb.log({"gnn_depth": args.gnn_depth})
+        wandb.log({"alpha": args.alpha})
 
         if args.domain == "src":
             pt, rt, f1t = seen_eval(model, testloader, device=device)
