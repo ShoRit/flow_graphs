@@ -8,7 +8,6 @@ from transformers import BertTokenizer, BertModel
 from helper import *
 
 
-
 class ZSBertRelDataset(Dataset):
     def __init__(self, dataset, rel2id, tokenizer, params, data_idx=0, domain="src"):
         self.dataset = dataset
@@ -61,17 +60,17 @@ class ZSBert_RGCN_RelDataset(Dataset):
         segments = torch.tensor([0] * len(tokens))
         desc_emb = ele["desc_emb"]
 
-		# this can change to "amr_data" to use the AMRs
-        dep_data = ele["dep_data"]
+        # this can change to "amr_data" to use the AMRs
+        dep_data = ele["amr_data"]
         # node_vecs, edge_index, edge_type, n1_mask, n2_mask = ele['dep_data'].x, ele['dep_data'].edge_index, ele['dep_data'].edge_type, ele['dep_data'].n1_mask, ele['dep_data'].n2_mask
         # node_vecs, edge_index, edge_type, n1_mask, n2_mask = torch.tensor(node_vecs), torch.tensor(edge_index), torch.tensor(edge_type), torch.tensor(n1_mask), torch.tensor(n2_mask)
 
         dep_data = Data(
-            x=torch.tensor(dep_data.x),
-            edge_index=torch.tensor(dep_data.edge_index),
-            edge_type=torch.tensor(dep_data.edge_type),
-            n1_mask=torch.tensor(dep_data.n1_mask),
-            n2_mask=torch.tensor(dep_data.n2_mask),
+            x=dep_data.x,
+            edge_index=dep_data.edge_index,
+            edge_type=dep_data.edge_type,
+            n1_mask=dep_data.n1_mask,
+            n2_mask=dep_data.n2_mask,
         )
 
         # dep_data 		= Data(x=dep_data.x.clone().detach().requires_grad_(True), edge_index= dep_data.edge_index.clone().detach(), \
