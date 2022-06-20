@@ -2175,12 +2175,13 @@ def create_mini_batch_orig(samples):
 
 def create_fewshot_data():
     for dataset in ["risec", "japflow", "mscorpus", "chemu"]:
-        data = load_dill(f"../data/{dataset}/data.dill")
+        print(f"Preprocessing dataset: {dataset}")
+        data = load_dill(f"/projects/flow_graphs/data/{dataset}/data_amr.dill")
         rels_data = list(data["train"]["rels"])
         random.shuffle(rels_data)
         for fewshot in [0.01, 0.05, 0.1, 0.2, 0.5]:
             data["train"]["rels"] = rels_data[0 : int(len(rels_data) * fewshot)]
-            dump_dill(data, f"../data/{dataset}/data-{fewshot}.dill")
+            dump_dill(data, f"/scratch/sgururaj/flow_graphs/{dataset}/data-{fewshot}_amr.dill")
 
 
 def create_dataset():
