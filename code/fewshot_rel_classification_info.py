@@ -202,10 +202,10 @@ def create_bertconfig(bertconfig, args):
 
 def main(args):
     device = seed_everything()
-    src_dir = f"../data/{args.src_dataset}"
-    src_file = f"{src_dir}/data.dill"
-    tgt_dir = f"../data/{args.tgt_dataset}"
-    tgt_file = f"{tgt_dir}/data-{args.fewshot}.dill"
+    src_dir = f"/projects/flow_graphs/data/{args.src_dataset}"
+    src_file = f"{src_dir}/data_amr.dill"
+    tgt_dir = f"/projects/flow_graphs/data/{args.tgt_dataset}"
+    tgt_file = f"{tgt_dir}/data-{args.fewshot}_amr.dill"
 
     all_tgt_file = f"{tgt_dir}/data.dill"
     omit_rels = args.omit_rels.split(",")
@@ -280,8 +280,8 @@ def main(args):
     )
 
     best_p, best_r, best_f1 = 0, 0, 0
-    tgt_checkpoint_file = f"../checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.fewshot}-src--dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
-    src_checkpoint_file = f"../checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
+    tgt_checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.fewshot}-src--dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
+    src_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
 
     src_model = ZSBert_RGCN.from_pretrained(args.bert_model, config=src_bertconfig)
     src_model = src_model.to(device)
@@ -534,7 +534,7 @@ def main(args):
         f1_arr, prec_arr, rec_arr, hits_arr = [], [], [], []
 
         for seed in range(0, 3):
-            checkpoint_file = f"../checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{seed}-lr_{args.lr}.pt"
+            checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{seed}-lr_{args.lr}.pt"
             model.load_state_dict(torch.load(checkpoint_file))
             model.eval()
 

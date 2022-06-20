@@ -30,8 +30,7 @@ def seed_everything():
     torch.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device(f"cuda:{args.gpu}") if torch.cuda.is_available() else torch.device("cpu")
     return device
 
 
@@ -203,10 +202,10 @@ def seen_eval(model, loader, device):
 
 def main(args):
     device = seed_everything()
-    src_dir = f"../data/{args.src_dataset}"
-    src_file = f"{src_dir}/data.dill"
-    tgt_dir = f"../data/{args.tgt_dataset}"
-    tgt_file = f"{tgt_dir}/data.dill"
+    src_dir = f"/projects/flow_graphs/data/{args.src_dataset}"
+    src_file = f"{src_dir}/data_amr.dill"
+    tgt_dir = f"/projects/flow_graphs/data/{args.tgt_dataset}"
+    tgt_file = f"{tgt_dir}/data_amr.dill"
 
     omit_rels = args.omit_rels.split(",")
     deprel_dict = load_deprels(enhanced=False)
@@ -300,7 +299,7 @@ def main(args):
     best_p, best_r, best_f1 = 0, 0, 0
     # checkpoint_file													= f'../checkpoints/{args.src_dataset}_{args.domain}_alpha_{args.alpha}_gamma_{args.gamma}_dist_{args.dist_func}_dep_{args.dep}.pt'
 
-    checkpoint_file = f"../checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.domain}-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
+    checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.domain}-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
 
     if args.mode == "train":
         wandb.login()
@@ -532,7 +531,7 @@ def main(args):
         f1_arr, prec_arr, rec_arr, hits_arr = [], [], [], []
 
         for seed in range(0, 3):
-            checkpoint_file = f"../checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{seed}-lr_{args.lr}.pt"
+            checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{seed}-lr_{args.lr}.pt"
             model.load_state_dict(torch.load(checkpoint_file))
             model.eval()
 

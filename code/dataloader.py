@@ -1,8 +1,12 @@
 import imp
-from helper import *
-from transformers import BertTokenizer, BertModel
+from collections import defaultdict
+
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 from torch_geometric.data import Data
+from transformers import BertTokenizer, BertModel
+
+from helper import *
+
 
 
 class ZSBertRelDataset(Dataset):
@@ -56,6 +60,8 @@ class ZSBert_RGCN_RelDataset(Dataset):
         marked_2 = torch.tensor(ele["arg2_ids"] + [0] * (self.p.max_seq_len - len(ele["tokens"])))
         segments = torch.tensor([0] * len(tokens))
         desc_emb = ele["desc_emb"]
+
+		# this can change to "amr_data" to use the AMRs
         dep_data = ele["dep_data"]
         # node_vecs, edge_index, edge_type, n1_mask, n2_mask = ele['dep_data'].x, ele['dep_data'].edge_index, ele['dep_data'].edge_type, ele['dep_data'].n1_mask, ele['dep_data'].n2_mask
         # node_vecs, edge_index, edge_type, n1_mask, n2_mask = torch.tensor(node_vecs), torch.tensor(edge_index), torch.tensor(edge_type), torch.tensor(n1_mask), torch.tensor(n2_mask)

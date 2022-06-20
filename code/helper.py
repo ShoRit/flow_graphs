@@ -27,7 +27,7 @@ def load_glove(file="/data/glove_vector/glove.6B.100d.txt"):
     return glove_dict
 
 
-def load_deprels(file="../data/enh_dep_rel.txt", enhanced=False):
+def load_deprels(file="/projects/flow_graphs/data/enh_dep_rel.txt", enhanced=False):
     dep_dict = {}
     lines = open(file).readlines()
     for line in tqdm(lines):

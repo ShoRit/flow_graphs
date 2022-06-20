@@ -1,15 +1,29 @@
+from collections import defaultdict as ddict
+
+from amrlib import load_stog_model
+import penman
+import spacy
+import stanza
+from torch.nn.utils.rnn import pad_sequence
+from tqdm.auto import tqdm
+
+from amr.annotate_datasets import align_tokens_to_sentence
+from amr.create_amr_rel2id import UNKNOWN_RELATION
+from amr.indexing_utils import compute_token_overlap_range, get_overlapping_sentences_and_amrs
 from helper import *
 from intervals import *
-import spacy
-from torch.nn.utils.rnn import pad_sequence
-import stanza
+
+
+def load_amr_rel2id(path="/projects/flow_graphs/data/amr_rel2id.json"):
+    with open(path) as f:
+        return json.load(f)
 
 
 def generate_reldesc():
     from sentence_transformers import SentenceTransformer
 
     rel2desc_emb = {}
-    rel2desc = json.load(open(f"../data/rel2desc.json"))
+    rel2desc = json.load(open(f"/projects/flow_graphs/data/rel2desc.json"))
     encoder = SentenceTransformer("bert-base-nli-mean-tokens")
     rel2id, id2rel = {}, {}
 
@@ -197,7 +211,7 @@ def create_risec():
                     )
                 )
 
-    out_dir = f"../data/risec/"
+    out_dir = f"/projects/flow_graphs/data/risec/"
     for split in ["train", "dev", "test"]:
         with open(f"{out_dir}/{split}.json", "w") as json_file:
             json.dump(data_dict[split], json_file, indent=4)
@@ -344,7 +358,7 @@ def create_japflow():
                 )
             )
 
-    out_dir = f"../data/japflow/"
+    out_dir = f"/projects/flow_graphs/data/japflow/"
     for split in ["all"]:
         with open(f"{out_dir}/{split}.json", "w") as json_file:
             json.dump(data_dict[split], json_file, indent=4)
@@ -484,7 +498,7 @@ def create_mscorpus():
                     )
                 )
 
-    out_dir = f"../data/mscorpus/"
+    out_dir = f"/projects/flow_graphs/data/mscorpus/"
     for split in ["train", "dev", "test"]:
         with open(f"{out_dir}/{split}.json", "w") as json_file:
             json.dump(data_dict[split], json_file, indent=4)
@@ -599,7 +613,7 @@ def create_chemu():
                     )
                 )
 
-    out_dir = f"../data/chemu/"
+    out_dir = f"/projects/flow_graphs/data/chemu/"
     for split in ["train", "dev", "test"]:
         with open(f"{out_dir}/{split}.json", "w") as json_file:
             json.dump(data_dict[split], json_file, indent=4)
@@ -878,7 +892,7 @@ def dump_srls(data_dir, splits, text_tokenizer="scispacy"):
     srl_sents = set()
     for split in splits:
         docs = json.load(open(f"{data_dir}/{split}.json"))
-        for count, doc in enumerate(docs):
+        for count, doc in tqdm(enumerate(docs)):
             print(f"Done for {count}/{len(docs)}", end="\r")
             rel_map = {}
             lbl_cnt = ddict(int)
@@ -1494,10 +1508,6 @@ def add_parses(data_dir, splits, text_tokenizer="scispacy"):
     return
 
 
-def add_info():
-    pass
-
-
 def create_datafield(
     data_dir,
     splits,
@@ -1506,7 +1516,17 @@ def create_datafield(
     omit_rels=[],
     dep_flag=True,
 ):
+
+    # STUFF LOADING
+    ##################################################
+
     from transformers import AutoTokenizer, AutoModel
+
+    amr_count = 0
+    invalid_amr_count = 0
+    arg1_missing = 0
+    arg2_missing = 0
+    both_missing = 0
 
     tokenizer = AutoTokenizer.from_pretrained(bert_model)
     model = AutoModel.from_pretrained(bert_model)
@@ -1527,14 +1547,21 @@ def create_datafield(
     bad_sents = []
     for split in splits:
         docs = json.load(open(f"{data_dir}/{split}.json"))
+
+        with open(f"{data_dir}/amr_{split}.pkl", "rb") as f:
+            parsed_amrs = pickle.load(f)
         # docs 		= json.load(open(f'{data_dir}/parses_{split}.json'))
-        for count, doc in enumerate(docs):
-            print(f"Done for {count}/{len(docs)}", end="\r")
+        for count, (doc, amr_content) in tqdm(enumerate(zip(docs, parsed_amrs))):
+
+            # if count < 119:
+            #     continue
             rel_map = {}
             lbl_cnt = ddict(int)
             interdict = ddict(list)
             sents = [x for x in nlp(doc["text"]).sents]
 
+            # CREATING A SPAN-RELATION MAP
+            ##################################################
             for rel in doc["rels"]:
                 start_span = min(rel["arg1_start"], rel["arg2_start"])
                 end_span = max(rel["arg1_end"], rel["arg2_end"])
@@ -1550,7 +1577,12 @@ def create_datafield(
                     rel["arg_label"],
                 )
 
+            # CREATING A SPAN-SENTENCE MAP
+            ##################################################
+
+            # sent_idxs: token indices of where each sentence begins
             sent_idxs = [0] + [max([tok.idx for tok in sent]) for sent in sents]
+            # sent_ints: token intervals of sentences in the documents
             sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
             rel_ints = sorted(rel_map)
 
@@ -1565,6 +1597,9 @@ def create_datafield(
 
             ### creates each separate instance for each relation.
 
+            # WITH EACH SPAN/SENTENCE/RELATION
+            # MAPPING ENTITIES/SENTENCES TO TOKENS
+            ##################################################
             for rel_int in interdict:
                 (
                     arg1_start,
@@ -1600,23 +1635,6 @@ def create_datafield(
                     if sent_start is None:
                         sent_start = sent.start_char
                     sent_end = sent.end_char
-                    # if   text_tokenizer == 'scispacy':
-                    # sent_toks = sent
-
-                    # for tok in sent_toks:
-                    # 	# if   text_tokenizer == 'scispacy':
-                    # 	start, end = tok.idx, tok.idx + len(tok)
-                    # 	bert_toks = tokenizer.encode_plus(tok.text,  add_special_tokens=False)['input_ids']
-                    # 	if len(bert_toks) != 0:
-                    # 		tokens    += bert_toks
-                    # 		tok_range.append((start-sent_start , end-sent_start))
-                    # 		org_toks.append(tok.text)
-
-                    # 	if arg1_ann_map.contains(start,end):	arg1_tokens += [1]*len(bert_toks)
-                    # 	else:									arg1_tokens += [0]*len(bert_toks)
-
-                    # 	if arg2_ann_map.contains(start,end): 	arg2_tokens += [1]*len(bert_toks)
-                    # 	else:								 	arg2_tokens += [0]*len(bert_toks)
 
                 sent_str = doc["text"][sent_start:sent_end]
                 ## obtained the sentence boundary for the two relations in question.
@@ -1632,7 +1650,6 @@ def create_datafield(
                 )
                 arg1_ann_map[e1_start:e1_end] = (e1_start, e1_end, arg1_label)
                 arg2_ann_map[e2_start:e2_end] = (e2_start, e2_end, arg2_label)
-                # bw_arg_ann_map[min(e1_start, e2_start): max(e2_end, e1_end)]
 
                 sent_toks = tokenizer(sent_str, return_offsets_mapping=True, max_length=512)
                 bert_toks = sent_toks["input_ids"]
@@ -1664,6 +1681,9 @@ def create_datafield(
                 node_mask_dict = {}
                 edge_arr = []
                 dep_arr = []
+
+                # DEPENDENCY PARSE, MAP WORDS TO ENTITIES
+                ##################################################
 
                 # Specifically for the root that is attached to the main verb
                 # STAR NODE
@@ -1704,6 +1724,9 @@ def create_datafield(
 
                 last_six, last_eix = 1, 1
 
+                # CONSTRUCT GRAPH FROM DEPENDENCIES
+                ##################################################
+
                 for elem in dep_arr:
                     (
                         start_idx,
@@ -1739,6 +1762,7 @@ def create_datafield(
 
                     # if 	idx == len(tok_range) -2		: end_tok_idx = idx+1
                     # if 	idx == len(tok_range) -1		: end_tok_idx = idx+1
+
                     if start_tok_idx == 1 and end_tok_idx == 1:
                         start_tok_idx, end_tok_idx = last_six, last_eix
                     node_idx_dict[start_idx] = (start_tok_idx, end_tok_idx)
@@ -1762,6 +1786,7 @@ def create_datafield(
                     node_idx_dict[(sent_num, 0)] = (min_tok_idx, max_tok_idx)
                     node_mask_dict[(sent_num, 0)] = 0
 
+                ## Setting up masks for each node??
                 x, edge_index, edge_type, n1_mask, n2_mask = [], [[], []], [], [], []
                 for node in node_dict:
                     six, eix = node_idx_dict[node]
@@ -1790,12 +1815,14 @@ def create_datafield(
                         n1_mask.append(1)
                         n2_mask.append(1)
 
+                ## Setting up the edge arrays
                 for edge in edge_arr:
                     n1, n2, rel_idx = edge
                     edge_index[0].append(node_dict[n1])
                     edge_index[1].append(node_dict[n2])
                     edge_type.append(rel_idx)
 
+                ## Add the top node in
                 for sent_num in range(num_sents):
                     edge_index[0].append(node_dict[(sent_num, 0)])
                     edge_index[1].append(node_dict[(-1, -1)])
@@ -1808,6 +1835,7 @@ def create_datafield(
 
                     pdb.set_trace()
 
+                ## Set up the Data instance for the relation
                 try:
                     x, edge_index, edge_type, n1_mask, n2_mask = (
                         torch.stack(x, dim=0),
@@ -1830,6 +1858,214 @@ def create_datafield(
 
                 # import pdb; pdb.set_trace()
 
+                # AMR Parsing/construction
+                ##################################################
+
+                # TODO: this absolutely needs to be fixed: we cannot use the "in" test, it's really imprecise.
+                # look at index 64 of japflow test
+                split_sentences, aligned_amrs = get_overlapping_sentences_and_amrs(
+                    amr_content, sent_str
+                )
+
+                amr_relation_encoding = load_amr_rel2id()
+                aligned_tokens = [
+                    align_tokens_to_sentence(
+                        [token for token in re.split("\s", sentence) if token.strip()], sentence
+                    )
+                    for sentence in split_sentences
+                ]
+
+                # annotations are computed relative to the individual sentence, but tokens relative
+                #  to all the sentences together
+                sentence_offsets = [0]
+                acc = 0
+                for sentence in split_sentences[:-1]:
+                    # making an assumption here: that sentences are space-separated in the actual text
+                    acc = acc + len(sentence) + 1
+                    sentence_offsets.append(acc)
+
+                amr_node_dict = {}
+                amr_node_idx_dict = {}
+                amr_node_mask_dict = {}
+                amr_edge_arr = []
+                amr_edge_types = []
+
+                amr_node_dict[(-1, -1)] = 0
+                amr_node_idx_dict[(-1, -1)] = (1, len(bert_toks) - 1)
+                amr_node_mask_dict[(-1, -1)] = 0
+
+                for sentence_idx, (amr_graph, aligned_tokens, sentence_offset) in enumerate(
+                    zip(aligned_amrs, aligned_tokens, sentence_offsets)
+                ):
+                    if amr_graph is None:
+                        continue
+                    if sentence_offset >= len(sent_str):
+                        # this condition accounts for where there is a duplicate sentence that passes the crude `in sent_str` filter above,
+                        # but is not actually in `sent_str`. Example: repeated sentences.
+                        continue
+                    alignments = penman.surface.alignments(amr_graph)
+                    for triple in amr_graph.triples:
+                        s, r, t = triple
+
+                        ## Add nodes to the node map
+                        if r == ":instance":
+                            # if this is an instance node, only add the source as a node, bc this defines what the node "is"
+                            if s not in amr_node_dict:
+                                amr_node_dict[(sentence_idx, s)] = len(amr_node_dict)
+                        else:
+                            # if it's not an instance node, add both the source and the target
+                            if s not in amr_node_dict:
+                                amr_node_dict[(sentence_idx, s)] = len(amr_node_dict)
+                            if t not in amr_node_dict:
+                                amr_node_dict[(sentence_idx, t)] = len(amr_node_dict)
+
+                            ## Add the corresponding edges
+                            amr_edge_arr.append(
+                                (amr_node_dict[(sentence_idx, s)], amr_node_dict[(sentence_idx, t)])
+                            )
+                            amr_edge_types.append(
+                                amr_relation_encoding.get(
+                                    r.lower(), amr_relation_encoding[UNKNOWN_RELATION]
+                                )
+                            )
+
+                        ## Map the nodes of the graph to BERT tokens and relations
+                        if triple in alignments:
+                            alignment = alignments[triple]
+
+                            # set up the node-berttoken map
+                            for token_idx in alignment.indices:
+                                token = aligned_tokens[token_idx]
+                                overlapping_offset_range = compute_token_overlap_range(
+                                    token, sentence_offset, sent_toks["offset_mapping"]
+                                )
+                                node_start_token, node_end_token = overlapping_offset_range
+
+                                if r == ":instance":
+                                    amr_node_idx_dict[(sentence_idx, s)] = overlapping_offset_range
+                                    if any(e1_toks[node_start_token:node_end_token]) and any(
+                                        e2_toks[node_start_token:node_end_token]
+                                    ):
+                                        amr_node_mask_dict[(sentence_idx, s)] = 3
+                                    elif any(e1_toks[node_start_token:node_end_token]):
+                                        amr_node_mask_dict[(sentence_idx, s)] = 1
+                                    elif any(e2_toks[node_start_token:node_end_token]):
+                                        amr_node_mask_dict[(sentence_idx, s)] = 2
+                                    else:
+                                        amr_node_mask_dict[(sentence_idx, s)] = 0
+                                else:
+                                    amr_node_idx_dict[(sentence_idx, t)] = overlapping_offset_range
+                                    if any(e1_toks[node_start_token:node_end_token]):
+                                        amr_node_mask_dict[(sentence_idx, t)] = 1
+                                    elif any(e2_toks[node_start_token:node_end_token]):
+                                        amr_node_mask_dict[(sentence_idx, t)] = 2
+                                    else:
+                                        amr_node_mask_dict[(sentence_idx, t)] = 0
+
+                # set up sentence nodes
+
+                for sentence_idx in range(len(split_sentences)):
+                    prev_sentence_start = (
+                        0 if sentence_idx == 0 else sentence_offsets[sentence_idx - 1]
+                    )
+                    sentence_token_idxs = [
+                        i
+                        for i, (token_start, token_end) in enumerate(sent_toks["offset_mapping"])
+                        if token_start >= prev_sentence_start
+                        and token_end <= sentence_offsets[sentence_idx]
+                        and i not in {1, len(bert_toks)}
+                    ]
+
+                    min_tok_idx = min(sentence_token_idxs)
+                    max_tok_idx = max(sentence_token_idxs)
+
+                    amr_node_idx_dict[(sentence_idx, 0)] = (min_tok_idx, max_tok_idx)
+                    amr_node_mask_dict[(sentence_idx, 0)] = 0
+
+                ## Setting up masks for each node??
+                amr_x, amr_edge_index, amr_n1_mask, amr_n2_mask = (
+                    [],
+                    [[], []],
+                    [],
+                    [],
+                )
+                for node in amr_node_dict:
+                    if node in amr_node_idx_dict:
+                        six, eix = amr_node_idx_dict[node]
+                    else:
+                        six = 0
+                        eix = 0
+                    temp_ones = torch.ones((512,)) * -torch.inf
+
+                    try:
+                        assert six <= eix
+                    except Exception as e:
+                        import pdb
+
+                        pdb.set_trace()
+
+                    temp_ones[six:eix] = 0
+                    amr_x.append(temp_ones)
+
+                    mask = amr_node_mask_dict.get(node, 0)
+                    if mask == 0:
+                        amr_n1_mask.append(0)
+                        amr_n2_mask.append(0)
+                    if mask == 1:
+                        amr_n1_mask.append(1)
+                        amr_n2_mask.append(0)
+                    if mask == 2:
+                        amr_n1_mask.append(0)
+                        amr_n2_mask.append(1)
+                    if mask == 3:
+                        amr_n1_mask.append(1)
+                        amr_n2_mask.append(1)
+
+                ## Setting up the edge arrays
+                for edge in amr_edge_arr:
+                    n1, n2 = edge
+                    amr_edge_index[0].append(n1)
+                    amr_edge_index[1].append(n2)
+
+                ## Add the top node in
+                for sentence_idx in range(len(split_sentences)):
+                    if aligned_amrs[sentence_idx] is None:
+                        continue
+                    if sentence_offsets[sentence_idx] >= len(sent_str):
+                        # this condition accounts for where there is a duplicate sentence that passes the crude `in sent_str` filter above,
+                        # but is not actually in `sent_str`. Example: repeated sentences.
+                        continue
+                    amr_edge_index[0].append(amr_node_dict[(sentence_idx, "z1")])
+                    amr_edge_index[1].append(amr_node_dict[(-1, -1)])
+                    amr_edge_types.append(amr_relation_encoding["STAR"])
+
+                try:
+                    amr_count += 1
+                    assert sum(amr_n1_mask) > 0 and sum(amr_n2_mask) > 0
+                except Exception as e:
+                    invalid_amr_count += 1
+                    if sum(amr_n1_mask) == 0:
+                        arg1_missing += 1
+                    if sum(amr_n2_mask) == 0:
+                        arg2_missing += 1
+                    if sum(amr_n1_mask) == 0 and sum(amr_n2_mask) == 0:
+                        both_missing += 1
+
+                amr_x, amr_edge_index, amr_edge_type, amr_n1_mask, amr_n2_mask = (
+                    torch.stack(amr_x, dim=0),
+                    torch.LongTensor(amr_edge_index),
+                    torch.LongTensor(amr_edge_types),
+                    torch.LongTensor(amr_n1_mask),
+                    torch.LongTensor(amr_n2_mask),
+                )
+                amr_data = Data(
+                    x=amr_x,
+                    edge_index=amr_edge_index,
+                    edge_type=amr_edge_type,
+                    n1_mask=amr_n1_mask,
+                    n2_mask=amr_n2_mask,
+                )
+
                 data[split]["rels"].append(
                     {
                         "tokens": bert_toks,
@@ -1844,7 +2080,7 @@ def create_datafield(
                         "sent": sent_str,
                         "sent_start": sent_start,
                         "dep_data": dep_data,
-                        "amr_data": [],
+                        "amr_data": amr_data,
                     }
                 )
 
@@ -1855,6 +2091,10 @@ def create_datafield(
             data["dev"]["rels"] = rels_data[int(len(rels_data) * 0.8) : int(len(rels_data) * 0.9)]
             data["test"]["rels"] = rels_data[int(len(rels_data) * 0.9) :]
 
+    print(f"Invalid AMR count: {invalid_amr_count}/{amr_count}")
+    print(f"Missing arg1: {arg1_missing}")
+    print(f"Missing arg2: {arg2_missing}")
+    print(f"Both missing: {both_missing}")
     return data
 
 
@@ -1935,12 +2175,13 @@ def create_mini_batch_orig(samples):
 
 def create_fewshot_data():
     for dataset in ["risec", "japflow", "mscorpus", "chemu"]:
-        data = load_dill(f"../data/{dataset}/data.dill")
+        print(f"Preprocessing dataset: {dataset}")
+        data = load_dill(f"/projects/flow_graphs/data/{dataset}/data_amr.dill")
         rels_data = list(data["train"]["rels"])
         random.shuffle(rels_data)
         for fewshot in [0.01, 0.05, 0.1, 0.2, 0.5]:
             data["train"]["rels"] = rels_data[0 : int(len(rels_data) * fewshot)]
-            dump_dill(data, f"../data/{dataset}/data-{fewshot}.dill")
+            dump_dill(data, f"/projects/flow_graphs/data/{dataset}/data-{fewshot}_amr.dill")
 
 
 def create_dataset():
@@ -1958,32 +2199,42 @@ def create_dataset():
 def create_parses():
     if args.dataset == "risec":
         if args.parse == "srl":
-            dump_srls("../data/risec/", ["train", "dev", "test"], text_tokenizer="scispacy")
+            dump_srls(
+                "/projects/flow_graphs/data/risec/",
+                ["train", "dev", "test"],
+                text_tokenizer="scispacy",
+            )
         elif args.parse == "amr":
             dump_amrs(
-                "../data/risec/",
+                "/projects/flow_graphs/data/risec/",
                 ["train", "dev", "test"],
                 bert_model="bert-base-uncased",
                 text_tokenizer="scispacy",
             )
-        # dataset 	= add_parses('../data/risec/',['train','dev','test'])
-        # dump_dill(dataset, f'../data/risec/parses.dill')
+        # dataset 	= add_parses('/projects/flow_graphs/data/risec/',['train','dev','test'])
+        # dump_dill(dataset, f'/projects/flow_graphs/data/risec/parses.dill')
 
 
 def load_dataset():
     # if  args.dataset == 'risec':
 
-    # dataset 	= create_datafield(f'../data/{args.dataset}/',['train','dev','test'], bert_model ='bert-base-uncased', text_tokenizer='scispacy')
-    # dump_dill(dataset, f'../data/{args.dataset}/data.dill')
+    # dataset 	= create_datafield(f'/projects/flow_graphs/data/{args.dataset}/',['train','dev','test'], bert_model ='bert-base-uncased', text_tokenizer='scispacy')
+    # dump_dill(dataset, f'/projects/flow_graphs/data/{args.dataset}/data.dill')
 
-    if args.dataset == "japflow":
-        dataset = create_datafield(
-            f"../data/{args.dataset}/",
-            ["all"],
-            bert_model="bert-base-uncased",
-            text_tokenizer="scispacy",
-        )
-        dump_dill(dataset, f"../data/{args.dataset}/data.dill")
+    splits = {
+        "risec": ["train", "dev", "test"],
+        "japflow": ["train", "test"],
+        "chemu": ["train", "dev", "test"],
+        "mscorpus": ["train", "dev", "test"],
+    }[args.dataset]
+
+    dataset = create_datafield(
+        f"/projects/flow_graphs/data/{args.dataset}",
+        splits,
+        bert_model="bert-base-uncased",
+        text_tokenizer="scispacy",
+    )
+    dump_dill(dataset, f"/projects/flow_graphs/data/{args.dataset}/data_amr.dill")
 
     # elif args.dataset == 'japflow': 	create_japflow()
     # elif    args.dataset == 'curd': 	create_curd()
