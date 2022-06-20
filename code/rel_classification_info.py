@@ -30,23 +30,14 @@ def seed_everything():
     torch.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    device = (
-        torch.device(f"cuda:{args.gpu}")
-        if torch.cuda.is_available()
-        else torch.device("cpu")
-    )
+    device = torch.device(f"cuda:{args.gpu}") if torch.cuda.is_available() else torch.device("cpu")
     return device
 
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--src_dataset", help="choice of src_dataset", type=str, default="risec"
-    )
-    parser.add_argument(
-        "--tgt_dataset", help="choice of tgt_dataset", type=str, default="japflow"
-    )
+    parser.add_argument("--src_dataset", help="choice of src_dataset", type=str, default="risec")
+    parser.add_argument("--tgt_dataset", help="choice of tgt_dataset", type=str, default="japflow")
     parser.add_argument("--mode", help="choice of operation", type=str, default="eval")
     parser.add_argument(
         "--domain", help="seen or unseen domain", type=str, default="src"
@@ -61,21 +52,15 @@ def get_args():
     parser.add_argument("--seed", help="random seed", type=int, default=0)
     parser.add_argument("--gpu", help="choice of device", type=str, default="0")
 
-    parser.add_argument(
-        "--node_emb_dim", help="number of unseen classes", type=int, default=768
-    )
+    parser.add_argument("--node_emb_dim", help="number of unseen classes", type=int, default=768)
     parser.add_argument("--dep", help="dependency_parsing", type=str, default="1")
     parser.add_argument("--amr", help="amr_parsing", type=str, default="0")
     parser.add_argument("--gnn", help="Choice of GNN used", type=str, default="rgcn")
     parser.add_argument("--gnn_depth", help="Depth of GNN used", type=int, default=2)
 
-    parser.add_argument(
-        "--n_unseen", help="number of unseen classes", type=int, default=10
-    )
+    parser.add_argument("--n_unseen", help="number of unseen classes", type=int, default=10)
     parser.add_argument("--gamma", help="margin factor gamma", type=float, default=7.5)
-    parser.add_argument(
-        "--alpha", help="balance coefficient alpha", type=float, default=0.5
-    )
+    parser.add_argument("--alpha", help="balance coefficient alpha", type=float, default=0.5)
     parser.add_argument(
         "--dist_func", help="distance computing function", type=str, default="cosine"
     )
@@ -262,9 +247,7 @@ def main(args):
     print("Data is successfully loaded")
     train_label = [data["label"] for data in train_data]
 
-    bertconfig = BertConfig.from_pretrained(
-        args.bert_model, num_labels=len(set(train_label))
-    )
+    bertconfig = BertConfig.from_pretrained(args.bert_model, num_labels=len(set(train_label)))
 
     if "bert-large" in args.bert_model:
         bertconfig.relation_emb_dim = 1024
@@ -282,7 +265,6 @@ def main(args):
     bertconfig.amr = args.amr
     bertconfig.gnn = args.gnn
 
-    print(bertconfig)
     model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
     model = model.to(device)
 
@@ -307,9 +289,7 @@ def main(args):
 
     tokenizer = AutoTokenizer.from_pretrained(args.bert_model)
 
-    trainset = ZSBert_RGCN_RelDataset(
-        train_data, train_lbl2id, tokenizer, args, domain="src"
-    )
+    trainset = ZSBert_RGCN_RelDataset(train_data, train_lbl2id, tokenizer, args, domain="src")
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
@@ -350,12 +330,8 @@ def main(args):
                 dev_data, rel2desc_emb
             )
 
-        devset = ZSBert_RGCN_RelDataset(
-            dev_data, dev_lbl2id, tokenizer, args, domain=args.domain
-        )
-        devloader = DataLoader(
-            devset, batch_size=args.batch_size, collate_fn=create_mini_batch
-        )
+        devset = ZSBert_RGCN_RelDataset(dev_data, dev_lbl2id, tokenizer, args, domain=args.domain)
+        devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         kill_cnt = 0
 
         wandb.log({"src data": args.src_dataset})
@@ -414,9 +390,7 @@ def main(args):
 
                 # if step % 1000 == 0: print(f'[step {step}]' + '=' * (step//1000))
 
-            print(
-                f'train acc: {correct/total}, f1 : {f1_score(y_true,y_pred, average="macro")}'
-            )
+            print(f'train acc: {correct/total}, f1 : {f1_score(y_true,y_pred, average="macro")}')
 
             print("============== EVALUATION ON DEV DATA ==============")
 
@@ -431,12 +405,8 @@ def main(args):
                 print(f"Eval data {f1t} \t Prec {pt} \t Rec {rt}")
 
             else:
-                preds = (
-                    extract_relation_emb(model, devloader, device=device).cpu().numpy()
-                )
-                pt, rt, f1t, h_K = evaluate(
-                    preds, dev_y_attr, dev_y, dev_idxmap, args.dist_func
-                )
+                preds = extract_relation_emb(model, devloader, device=device).cpu().numpy()
+                pt, rt, f1t, h_K = evaluate(preds, dev_y_attr, dev_y, dev_idxmap, args.dist_func)
                 print(
                     f"[val] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K :{h_K}"
                 )
@@ -477,9 +447,7 @@ def main(args):
             ) = get_lbl_features(test_data, rel2desc_emb)
 
         testset = ZSBert_RGCN_RelDataset(test_data, test_lbl2id, tokenizer, args)
-        testloader = DataLoader(
-            testset, batch_size=args.batch_size, collate_fn=create_mini_batch
-        )
+        testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         best_model = best_model.to(device)
         best_model.eval()
         pt, rt, test_f1 = seen_eval(best_model, testloader, device=device)
@@ -507,9 +475,31 @@ def main(args):
             ) = get_lbl_features(test_data, rel2desc_emb)
 
         testset = ZSBert_RGCN_RelDataset(test_data, test_lbl2id, tokenizer, args)
-        testloader = DataLoader(
-            testset, batch_size=args.batch_size, collate_fn=create_mini_batch
-        )
+        testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
+
+        model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
+        model = model.to(device)
+        model.load_state_dict(torch.load(checkpoint_file))
+        model.eval()
+
+        if args.domain == "src":
+            pt, rt, f1t = seen_eval(model, testloader, device=device)
+            print(f"Train data {f1t} \t Prec {pt} \t Rec {rt}")
+        else:
+            preds = extract_relation_emb(model, testloader, device=device).cpu().numpy()
+            pt, rt, f1t, h_K = evaluate(
+                preds,
+                test_y_attr,
+                test_y,
+                test_idxmap,
+                args.dist_func,
+                test_lbl2id,
+                num_neighbors=args.num_neighbors,
+            )
+
+            print(
+                f"[best test] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K : {h_K}"
+            )
 
     if args.mode == "batch_eval":
 
@@ -533,9 +523,7 @@ def main(args):
         testset = ZSBert_RGCN_RelDataset(
             test_data, test_lbl2id, tokenizer, args, domain=args.domain
         )
-        testloader = DataLoader(
-            testset, batch_size=args.batch_size, collate_fn=create_mini_batch
-        )
+        testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
 
         model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
         model = model.to(device)
@@ -553,9 +541,7 @@ def main(args):
                 prec_arr.append(pt)
                 rec_arr.append(rt)
             else:
-                preds = (
-                    extract_relation_emb(model, testloader, device=device).cpu().numpy()
-                )
+                preds = extract_relation_emb(model, testloader, device=device).cpu().numpy()
                 pt, rt, f1t, h_K = evaluate(
                     preds,
                     test_y_attr,
@@ -589,25 +575,6 @@ def main(args):
         wandb.log({"gnn": args.gnn})
         wandb.log({"gnn_depth": args.gnn_depth})
         wandb.log({"alpha": args.alpha})
-
-        if args.domain == "src":
-            pt, rt, f1t = seen_eval(model, testloader, device=device)
-            print(f"Train data {f1t} \t Prec {pt} \t Rec {rt}")
-        else:
-            preds = extract_relation_emb(model, testloader, device=device).cpu().numpy()
-            pt, rt, f1t, h_K = evaluate(
-                preds,
-                test_y_attr,
-                test_y,
-                test_idxmap,
-                args.dist_func,
-                test_lbl2id,
-                num_neighbors=args.num_neighbors,
-            )
-
-            print(
-                f"[best test] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K : {h_K}"
-            )
 
 
 if __name__ == "__main__":

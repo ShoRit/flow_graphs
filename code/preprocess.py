@@ -2181,7 +2181,7 @@ def create_fewshot_data():
         random.shuffle(rels_data)
         for fewshot in [0.01, 0.05, 0.1, 0.2, 0.5]:
             data["train"]["rels"] = rels_data[0 : int(len(rels_data) * fewshot)]
-            dump_dill(data, f"/scratch/sgururaj/flow_graphs/{dataset}/data-{fewshot}_amr.dill")
+            dump_dill(data, f"/projects/flow_graphs/data/{dataset}/data-{fewshot}_amr.dill")
 
 
 def create_dataset():
