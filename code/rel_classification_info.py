@@ -277,7 +277,7 @@ def main(args):
 
     bertconfig.node_emb_dim = args.node_emb_dim
     bertconfig.dep_rels = len(deprel_dict)
-    bertconfig.dep = "amr"
+    bertconfig.dep = args.dep
     bertconfig.gnn_depth = args.gnn_depth
     bertconfig.amr = args.amr
     bertconfig.gnn = args.gnn
