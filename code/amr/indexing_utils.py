@@ -43,4 +43,15 @@ def get_overlapping_sentences_and_amrs(amr_content, target_string):
 
     return overlapping_sentences, overlapping_amrs
         
+
+def get_sentence_offsets(split_sentences):
     
+    sentence_offsets = [0]
+    acc = 0
+    
+    for sentence in split_sentences[:-1]:
+        # making an assumption here: that sentences are space-separated in the actual text
+        acc = acc + len(sentence) + 1
+        sentence_offsets.append(acc)
+        
+    return sentence_offsets
