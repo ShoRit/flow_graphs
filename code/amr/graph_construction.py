@@ -13,7 +13,74 @@ from amr.indexing_utils import (
 )
 
 
-def construct_amr_data(amr_content, sent_str, amr_relation_encoding, sent_toks, e1_toks, e2_toks):
+def _print_node_triple(node_tuple, aligned_amrs):
+    matching_triples = [
+        triple
+        for triple, alignment in aligned_amrs[node_tuple[0]].epidata
+        if triple[0] == node_tuple[1]
+    ]
+    assert len(matching_triples) == 1
+    print(matching_triples[0])
+
+
+def _print_entity_tokens(all_tokens, e1_mask, e2_mask, tokenizer):
+    tokens = torch.tensor(all_tokens)
+    e1_tokens = tokenizer.decode(tokens[torch.tensor(e1_mask) == 1])
+    e2_tokens = tokenizer.decode(tokens[torch.tensor(e2_mask) == 1])
+    print(f'e1 tokens: "{e1_tokens}"\ne2 tokens: "{e2_tokens}"')
+
+
+def add_top_node(aligned_amrs, node_dict, edge_index, edge_types, amr_relation_encoding):
+    for sentence_idx in range(len(aligned_amrs)):
+        if aligned_amrs[sentence_idx] is None:
+            continue
+        edge_index[0].append(node_dict[(sentence_idx, "z1")])
+        edge_index[1].append(node_dict[(-1, -1)])
+        edge_types.append(amr_relation_encoding["STAR"])
+
+
+def construct_entity_masks(node_dict, node_idx_dict, node_mask_dict):
+    x = []
+    n1_mask = []
+    n2_mask = []
+
+    for node in node_dict:
+        if node in node_idx_dict:
+            six, eix = node_idx_dict[node]
+        else:
+            six = 0
+            eix = 0
+        temp_ones = torch.ones((512,)) * -torch.inf
+
+        try:
+            assert six <= eix
+        except Exception as e:
+            import pdb
+
+            pdb.set_trace()
+
+        temp_ones[six:eix] = 0
+        x.append(temp_ones)
+
+        mask = node_mask_dict.get(node, 0)
+        if mask == 0:
+            n1_mask.append(0)
+            n2_mask.append(0)
+        if mask == 1:
+            n1_mask.append(1)
+            n2_mask.append(0)
+        if mask == 2:
+            n1_mask.append(0)
+            n2_mask.append(1)
+        if mask == 3:
+            n1_mask.append(1)
+            n2_mask.append(1)
+    return x, n1_mask, n2_mask
+
+
+def construct_amr_data(
+    amr_content, sent_str, amr_relation_encoding, sent_toks, e1_toks, e2_toks, tokenizer
+):
 
     split_sentences, aligned_amrs = get_overlapping_sentences_and_amrs(amr_content, sent_str)
 
@@ -29,16 +96,17 @@ def construct_amr_data(amr_content, sent_str, amr_relation_encoding, sent_toks, 
     # annotations are computed relative to the individual sentence, but tokens relative
     #  to all the sentences together
     sentence_offsets = get_sentence_offsets(split_sentences)
-    amr_node_dict = {}
-    amr_node_idx_dict = {}
-    amr_node_mask_dict = {}
-    amr_edge_arr = []
-    amr_edge_types = []
+    node_dict = {}
+    node_idx_dict = {}
+    node_mask_dict = {}
+    edge_index = [[], []]
+    edge_types = []
 
-    amr_node_dict[(-1, -1)] = 0
-    amr_node_idx_dict[(-1, -1)] = (1, len(bert_toks) - 1)
-    amr_node_mask_dict[(-1, -1)] = 0
+    node_dict[(-1, -1)] = 0
+    node_idx_dict[(-1, -1)] = (1, len(bert_toks) - 1)
+    node_mask_dict[(-1, -1)] = 0
 
+    ## Build the node/edge/edge type data structures
     for sentence_idx, (amr_graph, aligned_tokens, sentence_offset) in enumerate(
         zip(aligned_amrs, aligned_tokens, sentence_offsets)
     ):
@@ -55,20 +123,19 @@ def construct_amr_data(amr_content, sent_str, amr_relation_encoding, sent_toks, 
             ## Add nodes to the node map
             if r == ":instance":
                 # if this is an instance node, only add the source as a node, bc this defines what the node "is"
-                if s not in amr_node_dict:
-                    amr_node_dict[(sentence_idx, s)] = len(amr_node_dict)
+                if (sentence_idx, s) not in node_dict:
+                    node_dict[(sentence_idx, s)] = len(node_dict)
             else:
                 # if it's not an instance node, add both the source and the target
-                if s not in amr_node_dict:
-                    amr_node_dict[(sentence_idx, s)] = len(amr_node_dict)
-                if t not in amr_node_dict:
-                    amr_node_dict[(sentence_idx, t)] = len(amr_node_dict)
+                if (sentence_idx, s) not in node_dict:
+                    node_dict[(sentence_idx, s)] = len(node_dict)
+                if (sentence_idx, t) not in node_dict:
+                    node_dict[(sentence_idx, t)] = len(node_dict)
 
                 ## Add the corresponding edges
-                amr_edge_arr.append(
-                    (amr_node_dict[(sentence_idx, s)], amr_node_dict[(sentence_idx, t)])
-                )
-                amr_edge_types.append(
+                edge_index[0].append((node_dict[(sentence_idx, s)]))
+                edge_index[1].append(node_dict[(sentence_idx, t)])
+                edge_types.append(
                     amr_relation_encoding.get(r.lower(), amr_relation_encoding[UNKNOWN_RELATION])
                 )
 
@@ -85,28 +152,27 @@ def construct_amr_data(amr_content, sent_str, amr_relation_encoding, sent_toks, 
                     node_start_token, node_end_token = overlapping_offset_range
 
                     if r == ":instance":
-                        amr_node_idx_dict[(sentence_idx, s)] = overlapping_offset_range
+                        node_idx_dict[(sentence_idx, s)] = overlapping_offset_range
                         if any(e1_toks[node_start_token:node_end_token]) and any(
                             e2_toks[node_start_token:node_end_token]
                         ):
-                            amr_node_mask_dict[(sentence_idx, s)] = 3
+                            node_mask_dict[(sentence_idx, s)] = 3
                         elif any(e1_toks[node_start_token:node_end_token]):
-                            amr_node_mask_dict[(sentence_idx, s)] = 1
+                            node_mask_dict[(sentence_idx, s)] = 1
                         elif any(e2_toks[node_start_token:node_end_token]):
-                            amr_node_mask_dict[(sentence_idx, s)] = 2
+                            node_mask_dict[(sentence_idx, s)] = 2
                         else:
-                            amr_node_mask_dict[(sentence_idx, s)] = 0
+                            node_mask_dict[(sentence_idx, s)] = 0
                     else:
-                        amr_node_idx_dict[(sentence_idx, t)] = overlapping_offset_range
+                        node_idx_dict[(sentence_idx, t)] = overlapping_offset_range
                         if any(e1_toks[node_start_token:node_end_token]):
-                            amr_node_mask_dict[(sentence_idx, t)] = 1
+                            node_mask_dict[(sentence_idx, t)] = 1
                         elif any(e2_toks[node_start_token:node_end_token]):
-                            amr_node_mask_dict[(sentence_idx, t)] = 2
+                            node_mask_dict[(sentence_idx, t)] = 2
                         else:
-                            amr_node_mask_dict[(sentence_idx, t)] = 0
+                            node_mask_dict[(sentence_idx, t)] = 0
 
-    # set up sentence nodes
-
+    ## set up sentence nodes
     for sentence_idx in range(len(split_sentences)):
         prev_sentence_start = 0 if sentence_idx == 0 else sentence_offsets[sentence_idx - 1]
         sentence_token_idxs = [
@@ -120,91 +186,38 @@ def construct_amr_data(amr_content, sent_str, amr_relation_encoding, sent_toks, 
         min_tok_idx = min(sentence_token_idxs)
         max_tok_idx = max(sentence_token_idxs)
 
-        amr_node_idx_dict[(sentence_idx, 0)] = (min_tok_idx, max_tok_idx)
-        amr_node_mask_dict[(sentence_idx, 0)] = 0
-
-    ## Setting up masks for each node??
-    amr_x, amr_edge_index, amr_n1_mask, amr_n2_mask = (
-        [],
-        [[], []],
-        [],
-        [],
-    )
-    for node in amr_node_dict:
-        if node in amr_node_idx_dict:
-            six, eix = amr_node_idx_dict[node]
-        else:
-            six = 0
-            eix = 0
-        temp_ones = torch.ones((512,)) * -torch.inf
-
-        try:
-            assert six <= eix
-        except Exception as e:
-            import pdb
-
-            pdb.set_trace()
-
-        temp_ones[six:eix] = 0
-        amr_x.append(temp_ones)
-
-        mask = amr_node_mask_dict.get(node, 0)
-        if mask == 0:
-            amr_n1_mask.append(0)
-            amr_n2_mask.append(0)
-        if mask == 1:
-            amr_n1_mask.append(1)
-            amr_n2_mask.append(0)
-        if mask == 2:
-            amr_n1_mask.append(0)
-            amr_n2_mask.append(1)
-        if mask == 3:
-            amr_n1_mask.append(1)
-            amr_n2_mask.append(1)
-
-    ## Setting up the edge arrays
-    for edge in amr_edge_arr:
-        n1, n2 = edge
-        amr_edge_index[0].append(n1)
-        amr_edge_index[1].append(n2)
+        node_idx_dict[(sentence_idx, 0)] = (min_tok_idx, max_tok_idx)
+        node_mask_dict[(sentence_idx, 0)] = 0
 
     ## Add the top node in
-    for sentence_idx in range(len(split_sentences)):
-        if aligned_amrs[sentence_idx] is None:
-            continue
-        if sentence_offsets[sentence_idx] >= len(sent_str):
-            # this condition accounts for where there is a duplicate sentence that passes the crude `in sent_str` filter above,
-            # but is not actually in `sent_str`. Example: repeated sentences.
-            continue
-        amr_edge_index[0].append(amr_node_dict[(sentence_idx, "z1")])
-        amr_edge_index[1].append(amr_node_dict[(-1, -1)])
-        amr_edge_types.append(amr_relation_encoding["STAR"])
+    add_top_node(aligned_amrs, node_dict, edge_index, edge_types, amr_relation_encoding)
+
+    ## Setting up masks for each node
+    x, n1_mask, n2_mask = construct_entity_masks(node_dict, node_idx_dict, node_mask_dict)
 
     try:
-        # amr_count += 1
-        assert sum(amr_n1_mask) > 0 and sum(amr_n2_mask) > 0
+        assert sum(n1_mask) > 0 and sum(n2_mask) > 0
     except Exception as e:
         pass
-        # invalid_amr_count += 1
-        # if sum(amr_n1_mask) == 0:
-        #     arg1_missing += 1
-        # if sum(amr_n2_mask) == 0:
-        #     arg2_missing += 1
-        # if sum(amr_n1_mask) == 0 and sum(amr_n2_mask) == 0:
-        #     both_missing += 1
 
-    amr_x, amr_edge_index, amr_edge_type, amr_n1_mask, amr_n2_mask = (
-        torch.stack(amr_x, dim=0),
-        torch.LongTensor(amr_edge_index),
-        torch.LongTensor(amr_edge_types),
-        torch.LongTensor(amr_n1_mask),
-        torch.LongTensor(amr_n2_mask),
+    try:
+        if edge_index[0]:
+            assert torch.tensor(edge_index).max() in node_dict.values()
+    except Exception:
+        pass
+
+    x, edge_index, edge_type, n1_mask, n2_mask = (
+        torch.stack(x, dim=0),
+        torch.LongTensor(edge_index),
+        torch.LongTensor(edge_types),
+        torch.LongTensor(n1_mask),
+        torch.LongTensor(n2_mask),
     )
     amr_data = Data(
-        x=amr_x,
-        edge_index=amr_edge_index,
-        edge_type=amr_edge_type,
-        n1_mask=amr_n1_mask,
-        n2_mask=amr_n2_mask,
+        x=x,
+        edge_index=edge_index,
+        edge_type=edge_type,
+        n1_mask=n1_mask,
+        n2_mask=n2_mask,
     )
     return amr_data

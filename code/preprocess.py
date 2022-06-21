@@ -1,5 +1,6 @@
 from collections import defaultdict as ddict
 
+import numpy as np
 import spacy
 import stanza
 from torch.nn.utils.rnn import pad_sequence
@@ -1856,7 +1857,13 @@ def create_datafield(
                 # import pdb; pdb.set_trace()
 
                 amr_data = construct_amr_data(
-                    amr_content, sent_str, amr_relation_encoding, sent_toks, e1_toks, e2_toks
+                    amr_content,
+                    sent_str,
+                    amr_relation_encoding,
+                    sent_toks,
+                    e1_toks,
+                    e2_toks,
+                    tokenizer,
                 )
 
                 data[split]["rels"].append(
@@ -1912,7 +1919,7 @@ def create_mini_batch(samples):
     masks_tensors = torch.zeros(tokens_tensors.shape, dtype=torch.long)
     masks_tensors = masks_tensors.masked_fill(tokens_tensors != 0, 1)
 
-    relation_emb = torch.tensor(relation_emb)
+    relation_emb = torch.tensor(np.array(relation_emb))
 
     graph_list = [s[6] for s in samples]
     graph_loader = DataLoader(graph_list, batch_size=len(graph_list))
@@ -1949,7 +1956,7 @@ def create_mini_batch_orig(samples):
     masks_tensors = torch.zeros(tokens_tensors.shape, dtype=torch.long)
     masks_tensors = masks_tensors.masked_fill(tokens_tensors != 0, 1)
 
-    relation_emb = torch.tensor(relation_emb)
+    relation_emb = torch.tensor(np.array(relation_emb))
 
     # graph_list 						= [s[6] for s in samples]
     # graph_loader 					= DataLoader(graph_list, batch_size=len(graph_list))
