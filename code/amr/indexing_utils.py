@@ -23,35 +23,11 @@ def compute_token_overlap_range(
     return (overlap_range_start, overlap_range_end)
 
 
-
-def get_overlapping_sentences_and_amrs(amr_content, target_string):
-    target_sentences = sentencizer(target_string)
-    overlapping_sentences  = []
-    overlapping_amrs = []
-
-    for parsed_sentence in amr_content:
-        source_string = parsed_sentence["text"]
-        amr = parsed_sentence["graph"]
-
-        if not target_sentences:
-            break
-
-        if source_string == target_sentences[0]:
-            target_sentences.pop(0)
-            overlapping_sentences.append(source_string)
-            overlapping_amrs.append(amr)
-
-    return overlapping_sentences, overlapping_amrs
-        
-
 def get_sentence_offsets(split_sentences):
-    
     sentence_offsets = [0]
     acc = 0
-    
     for sentence in split_sentences[:-1]:
         # making an assumption here: that sentences are space-separated in the actual text
         acc = acc + len(sentence) + 1
         sentence_offsets.append(acc)
-        
     return sentence_offsets

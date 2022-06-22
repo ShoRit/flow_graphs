@@ -6,6 +6,7 @@ import stanza
 from torch.nn.utils.rnn import pad_sequence
 from tqdm.auto import tqdm
 
+from amr.annotate_datasets import format_sentence
 from amr.graph_construction import construct_amr_data
 from helper import *
 from intervals import *
@@ -1549,7 +1550,7 @@ def create_datafield(
         with open(f"{data_dir}/amr_{split}.pkl", "rb") as f:
             parsed_amrs = pickle.load(f)
         # docs 		= json.load(open(f'{data_dir}/parses_{split}.json'))
-        for count, (doc, amr_content) in tqdm(enumerate(zip(docs, parsed_amrs))):
+        for count, (doc, amr_content) in tqdm(enumerate(zip(docs, parsed_amrs)), total=len(docs)):
 
             # if count < 119:
             #     continue
@@ -1591,7 +1592,7 @@ def create_datafield(
                         continue
                     if rel_end < sent_start:
                         break
-                    interdict[(rel_start, rel_end)].append(sents[sent_cnt])
+                    interdict[(rel_start, rel_end)].append((sent_cnt, sents[sent_cnt]))
 
             ### creates each separate instance for each relation.
 
@@ -1629,12 +1630,23 @@ def create_datafield(
                 sent_str = ""
                 sent_start = None
                 sent_end = None
-                for sent in interdict[rel_int]:
+                for _, sent in interdict[rel_int]:
                     if sent_start is None:
                         sent_start = sent.start_char
                     sent_end = sent.end_char
-
                 sent_str = doc["text"][sent_start:sent_end]
+
+                start_sentence_idx = min([sent_idx for (sent_idx, _) in interdict[rel_int]])
+                end_sentence_idx = max([sent_idx for (sent_idx, _) in interdict[rel_int]]) + 1
+                relation_amrs = amr_content[start_sentence_idx:end_sentence_idx]
+
+                all_sentences_text = [format_sentence(sent.text) for sent in sents]
+                assert all([instance["text"] in all_sentences_text for instance in amr_content])
+                assert [
+                    instance["text"]
+                    for instance in amr_content[start_sentence_idx:end_sentence_idx]
+                ] == all_sentences_text[start_sentence_idx:end_sentence_idx]
+
                 ## obtained the sentence boundary for the two relations in question.
                 assert sent_start <= min(arg1_start, arg2_start) and sent_end >= max(
                     arg2_end, arg1_end
@@ -1856,8 +1868,8 @@ def create_datafield(
 
                 # import pdb; pdb.set_trace()
 
-                amr_data = construct_amr_data(
-                    amr_content,
+                amr_data_dict = construct_amr_data(
+                    relation_amrs,
                     sent_str,
                     amr_relation_encoding,
                     sent_toks,
@@ -1865,6 +1877,14 @@ def create_datafield(
                     e2_toks,
                     tokenizer,
                 )
+
+                amr_data = amr_data_dict["amr_data"]
+
+                amr_count += 1
+                invalid_amr_count += amr_data_dict["invalid"]
+                arg1_missing += amr_data_dict["arg1_missing"]
+                arg2_missing += amr_data_dict["arg2_missing"]
+                both_missing += amr_data_dict["both_missing"]
 
                 data[split]["rels"].append(
                     {

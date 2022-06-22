@@ -8,7 +8,6 @@ from amr.annotate_datasets import align_tokens_to_sentence
 from amr.create_amr_rel2id import UNKNOWN_RELATION
 from amr.indexing_utils import (
     compute_token_overlap_range,
-    get_overlapping_sentences_and_amrs,
     get_sentence_offsets,
 )
 
@@ -82,7 +81,8 @@ def construct_amr_data(
     amr_content, sent_str, amr_relation_encoding, sent_toks, e1_toks, e2_toks, tokenizer
 ):
 
-    split_sentences, aligned_amrs = get_overlapping_sentences_and_amrs(amr_content, sent_str)
+    split_sentences = [instance["text"] for instance in amr_content]
+    aligned_amrs = [instance["graph"] for instance in amr_content]
 
     bert_toks = sent_toks["input_ids"]
 
@@ -111,10 +111,6 @@ def construct_amr_data(
         zip(aligned_amrs, aligned_tokens, sentence_offsets)
     ):
         if amr_graph is None:
-            continue
-        if sentence_offset >= len(sent_str):
-            # this condition accounts for where there is a duplicate sentence that passes the crude `in sent_str` filter above,
-            # but is not actually in `sent_str`. Example: repeated sentences.
             continue
         alignments = penman.surface.alignments(amr_graph)
         for triple in amr_graph.triples:
@@ -195,10 +191,21 @@ def construct_amr_data(
     ## Setting up masks for each node
     x, n1_mask, n2_mask = construct_entity_masks(node_dict, node_idx_dict, node_mask_dict)
 
+    invalid = 0
+    arg1_missing = 0
+    arg2_missing = 0
+    both_missing = 0 
+
     try:
         assert sum(n1_mask) > 0 and sum(n2_mask) > 0
     except Exception as e:
-        pass
+        invalid += 1
+        if sum(n1_mask) == 0:
+            arg1_missing += 1
+        if sum(n2_mask) == 0:
+            arg2_missing += 1
+        if sum(n1_mask) == 0 and sum(n2_mask) == 0:
+            both_missing += 1
 
     try:
         if edge_index[0]:
@@ -220,4 +227,10 @@ def construct_amr_data(
         n1_mask=n1_mask,
         n2_mask=n2_mask,
     )
-    return amr_data
+    return {
+        "amr_data": amr_data,
+        "invalid": invalid,
+        "arg1_missing": arg1_missing,
+        "arg2_missing": arg2_missing,
+        "both_missing": both_missing
+    }
