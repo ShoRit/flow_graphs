@@ -12,21 +12,21 @@ from amr.indexing_utils import (
 )
 
 
-def _print_node_triple(node_tuple, aligned_amrs):
-    matching_triples = [
-        triple
-        for triple, alignment in aligned_amrs[node_tuple[0]].epidata
-        if triple[0] == node_tuple[1]
-    ]
-    assert len(matching_triples) == 1
-    print(matching_triples[0])
+"""
+STRING FOR INSPECTION
+This prints a coherence check when stopped at the end of this file, where we construct the AMR data.
+Paste this into a debugger console. 
+We can check that the words from arg1 and arg2 correspond to the correct nodes in the graph. Process:
+- look at the nodes that are referred to by the n1 and n2 mask
+- check against the printed graphs and the nodes in them: do the arg1 and arg2 words match the nodes in the AMR?
 
-
-def _print_entity_tokens(all_tokens, e1_mask, e2_mask, tokenizer):
-    tokens = torch.tensor(all_tokens)
-    e1_tokens = tokenizer.decode(tokens[torch.tensor(e1_mask) == 1])
-    e2_tokens = tokenizer.decode(tokens[torch.tensor(e2_mask) == 1])
-    print(f'e1 tokens: "{e1_tokens}"\ne2 tokens: "{e2_tokens}"')
+print(debug_content["arg1_word"], debug_content["arg2_word"])
+inverse_node_dict = {v:k for k,v in node_dict.items()}
+print([inverse_node_dict[idx] for idx in torch.where(n1_mask)[0].numpy()])
+print([inverse_node_dict[idx] for idx in torch.where(n2_mask)[0].numpy()])
+for graph in aligned_amrs:
+    print(penman.encode(graph))
+"""
 
 
 def add_top_node(aligned_amrs, node_dict, edge_index, edge_types, amr_relation_encoding):
@@ -78,7 +78,7 @@ def construct_entity_masks(node_dict, node_idx_dict, node_mask_dict):
 
 
 def construct_amr_data(
-    amr_content, sent_str, amr_relation_encoding, sent_toks, e1_toks, e2_toks, tokenizer
+    amr_content, sent_str, amr_relation_encoding, sent_toks, e1_toks, e2_toks, debug_content
 ):
 
     split_sentences = [instance["text"] for instance in amr_content]
@@ -194,7 +194,7 @@ def construct_amr_data(
     invalid = 0
     arg1_missing = 0
     arg2_missing = 0
-    both_missing = 0 
+    both_missing = 0
 
     try:
         assert sum(n1_mask) > 0 and sum(n2_mask) > 0
@@ -232,5 +232,5 @@ def construct_amr_data(
         "invalid": invalid,
         "arg1_missing": arg1_missing,
         "arg2_missing": arg2_missing,
-        "both_missing": both_missing
+        "both_missing": both_missing,
     }

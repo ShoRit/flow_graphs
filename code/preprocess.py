@@ -1875,7 +1875,7 @@ def create_datafield(
                     sent_toks,
                     e1_toks,
                     e2_toks,
-                    tokenizer,
+                    {"tokenizer": tokenizer, "arg1_word": arg1_word, "arg2_word": arg2_word},
                 )
 
                 amr_data = amr_data_dict["amr_data"]
