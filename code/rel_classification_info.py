@@ -203,9 +203,9 @@ def seen_eval(model, loader, device):
 def main(args):
     device = seed_everything()
     src_dir = f"/projects/flow_graphs/data/{args.src_dataset}"
-    src_file = f"{src_dir}/data_amr_filtered.dill"
+    src_file = f"{src_dir}/data_amr.dill"
     tgt_dir = f"/projects/flow_graphs/data/{args.tgt_dataset}"
-    tgt_file = f"{tgt_dir}/data_amr_filtered.dill"
+    tgt_file = f"{tgt_dir}/data_amr.dill"
 
     omit_rels = args.omit_rels.split(",")
     deprel_dict = load_deprels(enhanced=False)
@@ -299,7 +299,7 @@ def main(args):
     best_p, best_r, best_f1 = 0, 0, 0
     # checkpoint_file													= f'../checkpoints/{args.src_dataset}_{args.domain}_alpha_{args.alpha}_gamma_{args.gamma}_dist_{args.dist_func}_dep_{args.dep}.pt'
 
-    checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.domain}-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}_filtered.pt"
+    checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.domain}-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
 
     if args.mode == "train":
         wandb.login()
