@@ -44,10 +44,14 @@ def align_graph(graph, sentence, aligner):
     return penman.decode(aligned_graphs[0])
 
 
+def format_sentence(text):
+    return text.replace("\n", " ")
+
+
 def sentencizer(text, spacy_fn=None):
     if spacy_fn is None:
         spacy_fn = default_spacy_fn
-    return [sent.text.replace("\n", " ") for sent in spacy_fn(text).sents]
+    return [format_sentence(sent.text) for sent in spacy_fn(text).sents]
 
 
 def align_tokens_to_sentence(token_list, sentence):

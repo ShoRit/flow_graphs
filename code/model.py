@@ -275,6 +275,8 @@ class ZSBert_RGCN(BertPreTrainedModel):
                 )
 
             graph_embs = torch.vstack(graph_embs)
+            graph_embs[graph_embs == -torch.inf] = 0
+
             graph_embs = self.gnn(graph_embs, graph_data.edge_index, graph_data.edge_type)
 
             # n1_mask, n2_mask, batch     = graph_data.n1_mask, graph_data.n2_mask, graph_data.batch
