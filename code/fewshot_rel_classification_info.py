@@ -30,8 +30,7 @@ def seed_everything():
     torch.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device(f"cuda:{args.gpu}") if torch.cuda.is_available() else torch.device("cpu")
     return device
 
 
@@ -231,7 +230,7 @@ def main(args):
 
     # here we end up creating relations based on the description of the label completely, hence we need a unified form of labels to use for the seen case.
 
-    rel2desc, all_rel2id, id2all_rel, rel2desc_emb = generate_reldesc()
+    rel2desc, all_rel2id, id2all_rel, rel2desc_emb = generate_reldesc(device=device)
 
     print(
         "train size: {}, dev size {}, test size: {}".format(
@@ -280,7 +279,7 @@ def main(args):
     )
 
     best_p, best_r, best_f1 = 0, 0, 0
-    tgt_checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.fewshot}-src--dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
+    tgt_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.fewshot}-src--dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
     src_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
 
     src_model = ZSBert_RGCN.from_pretrained(args.bert_model, config=src_bertconfig)

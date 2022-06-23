@@ -17,12 +17,12 @@ def load_amr_rel2id(path="/projects/flow_graphs/data/amr_rel2id.json"):
         return json.load(f)
 
 
-def generate_reldesc():
+def generate_reldesc(device=None):
     from sentence_transformers import SentenceTransformer
 
     rel2desc_emb = {}
     rel2desc = json.load(open(f"/projects/flow_graphs/data/rel2desc.json"))
-    encoder = SentenceTransformer("bert-base-nli-mean-tokens")
+    encoder = SentenceTransformer("bert-base-nli-mean-tokens", device=device)
     rel2id, id2rel = {}, {}
 
     for i, rel in enumerate(rel2desc):
