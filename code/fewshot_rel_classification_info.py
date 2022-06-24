@@ -200,6 +200,10 @@ def create_bertconfig(bertconfig, args):
 
 
 def main(args):
+    if args.src_dataset == args.tgt_dataset:
+        print("Fewshot training doesn't make sense on only one dataset!")
+        sys.exit(0)
+
     device = seed_everything()
     src_dir = f"/projects/flow_graphs/data/{args.src_dataset}"
     src_file = f"{src_dir}/data_amr.dill"
@@ -481,7 +485,7 @@ def main(args):
 
         model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
         model = model.to(device)
-        model.load_state_dict(torch.load(tgt_checkpoint_file))
+        model.load_state_dict(torch.load(tgt_checkpoint_file, map_location=device))
         model.eval()
 
         if args.domain == "src":

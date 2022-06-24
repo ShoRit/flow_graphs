@@ -1,0 +1,34 @@
+program: fewshot_rel_classification_info.py
+method: grid
+parameters:
+  seed:
+    values: [0]
+  fewshot:
+    values: [0.01, 0.05, 0.1, 0.2, 0.5]
+  src_dataset:
+    values: ["risec", "japflow", "chemu", "mscorpus"]
+  tgt_dataset:
+    values: ["risec", "japflow", "chemu", "mscorpus"]
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+  - "--mode"
+  - "train"
+  - "--domain"
+  - "src"
+  - "--dep"
+  - "1"
+  - "--amr"
+  - "1"
+  - "--gnn"
+  - "rgcn"
+  - "--alpha"
+  - "0.5"
+  - "--batch_size"
+  - "4"
+  - "--gnn_depth"
+  - "2"
+  - "--gpu"
+  - "0"
