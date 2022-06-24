@@ -288,7 +288,7 @@ def main(args):
 
     src_model = ZSBert_RGCN.from_pretrained(args.bert_model, config=src_bertconfig)
     src_model = src_model.to(device)
-    src_model.load_state_dict(torch.load(src_checkpoint_file))
+    src_model.load_state_dict(torch.load(src_checkpoint_file, map_location=device))
 
     model = ZSBert_RGCN.from_pretrained(args.bert_model, config=tgt_bertconfig)
     model = model.to(device)
