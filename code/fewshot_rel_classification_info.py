@@ -538,7 +538,7 @@ def main(args):
 
         for seed in range(0, 3):
             checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{seed}-lr_{args.lr}.pt"
-            model.load_state_dict(torch.load(checkpoint_file))
+            model.load_state_dict(torch.load(checkpoint_file, map_location=device))
             model.eval()
 
             if args.domain == "src":
