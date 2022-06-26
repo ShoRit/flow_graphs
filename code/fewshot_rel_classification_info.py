@@ -293,6 +293,8 @@ def main(args):
     best_p, best_r, best_f1 = 0, 0, 0
     tgt_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.fewshot}-src--dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
     src_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
+    if not check_file(src_checkpoint_file):
+        src_checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
 
     src_model = ZSBert_RGCN.from_pretrained(args.bert_model, config=src_bertconfig)
     src_model = src_model.to(device)
