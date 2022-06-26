@@ -40,13 +40,14 @@ class ZSBertRelDataset(Dataset):
 
 
 class ZSBert_RGCN_RelDataset(Dataset):
-    def __init__(self, dataset, rel2id, tokenizer, params, data_idx=0, domain="src"):
+    def __init__(self, dataset, rel2id, tokenizer, params, data_idx=0, domain="src", use_amrs=False):
         self.dataset = dataset
         self.rel2id = rel2id
         self.p = params
         self.tokenizer = tokenizer
         self.data_idx = data_idx
         self.domain = domain
+        self.use_amrs = use_amrs
 
     def __len__(self):
         return len(self.dataset)
@@ -61,7 +62,10 @@ class ZSBert_RGCN_RelDataset(Dataset):
         desc_emb = ele["desc_emb"]
 
         # this can change to "amr_data" to use the AMRs
-        dep_data = ele["amr_data"]
+        if self.use_amrs:
+            dep_data = ele["amr_data"]
+        else:
+            dep_data = ele["dep_data"]
         # node_vecs, edge_index, edge_type, n1_mask, n2_mask = ele['dep_data'].x, ele['dep_data'].edge_index, ele['dep_data'].edge_type, ele['dep_data'].n1_mask, ele['dep_data'].n2_mask
         # node_vecs, edge_index, edge_type, n1_mask, n2_mask = torch.tensor(node_vecs), torch.tensor(edge_index), torch.tensor(edge_type), torch.tensor(n1_mask), torch.tensor(n2_mask)
 

@@ -1,3 +1,5 @@
+import sys
+
 from helper import *
 from dataloader import *
 from preprocess import *
@@ -202,7 +204,11 @@ def create_bertconfig(bertconfig, args):
 def main(args):
     if args.src_dataset == args.tgt_dataset:
         print("Fewshot training doesn't make sense on only one dataset!")
-        sys.exit(0)
+        sys.exit(1)
+
+    if args.dep == 0 and args.amr == 1:
+        print("This is a redundant pair of arguments, doesn't do anything right now!")
+        sys.exit(1)
 
     device = seed_everything()
     src_dir = f"/projects/flow_graphs/data/{args.src_dataset}"
@@ -277,7 +283,9 @@ def main(args):
 
     tokenizer = AutoTokenizer.from_pretrained(args.bert_model)
 
-    trainset = ZSBert_RGCN_RelDataset(train_data, train_lbl2id, tokenizer, args, domain="src")
+    trainset = ZSBert_RGCN_RelDataset(
+        train_data, train_lbl2id, tokenizer, args, domain="src", use_amrs=bool(args.amr)
+    )
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )

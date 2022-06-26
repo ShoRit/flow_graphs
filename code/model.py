@@ -258,7 +258,7 @@ class ZSBert_RGCN(BertPreTrainedModel):
 
         rel_output = [context, e1_h, e2_h]
 
-        if self.config.dep == "1":
+        if self.config.dep == "1" or self.config.amr == "1":
 
             n1_mask, n2_mask, batch = (
                 graph_data.n1_mask,
