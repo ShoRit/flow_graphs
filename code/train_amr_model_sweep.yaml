@@ -1,0 +1,35 @@
+program: rel_classification_info.py
+method: grid
+parameters:
+  seed:
+    values: [1,2,445]
+  dataset:
+    values: ["risec", "japflow", "chemu", "mscorpus"]
+command: 
+  - ${env}
+  - python
+  - ${program}
+  - --src_dataset
+  - ${dataset}
+  - --tgt_dataset
+  - ${dataset}
+  - --seed
+  - ${seed}
+  - --amr 
+  - 1
+  - --dep 
+  - 1
+  - --mode
+  - "train"
+  - "--domain"
+  - "src"
+  - "--gnn"
+  - "rgcn"
+  - "--alpha"
+  - "0.5"
+  - "--batch_size"
+  - "32"
+  - "--gnn_depth"
+  - "2"
+  - "--gpu"
+  - "0"
