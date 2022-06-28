@@ -105,4 +105,4 @@ def add_heuristic_alignments(amr_graph, sentence, lemmatizer=None):
                     # each node lemma should be related to only one token, for our sanity
                     break
         new_alignment = Alignment(indices=tuple(sorted(node_indices)), prefix="e.")
-        alignments[triple] = new_alignment
+        amr_graph.epidata[triple].append(new_alignment)
