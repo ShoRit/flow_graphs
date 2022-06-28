@@ -74,18 +74,6 @@ def get_args():
     parser.add_argument("--omit_rels", type=str, default="")
 
     args = parser.parse_args()
-
-    wandb.config = {
-        "learning_rate": 0.001,
-        "epochs": args.epochs,
-        "batch_size": args.batch_size,
-        "node_emb_dim": args.node_emb_dim,
-        "alpha": args.alpha,
-        "dep": args.dep,
-        "dataset": args.src_dataset,
-        "tgt_dataset": args.tgt_dataset,
-    }
-
     return args
 
 
@@ -304,18 +292,12 @@ def main(args):
     if args.mode == "train":
         wandb.login()
         wandb.init(
-            project="narrative-flow",
+            project="narrative-flow-staging",
             entity="flow-graphs-cmu",
             name=f'{checkpoint_file.split("/")[-1]}',
         )
 
-        wandb.config = {
-            "learning_rate": args.lr,
-            "epochs": args.epochs,
-            "batch_size": args.batch_size,
-            "node_vec": args.node_emb_dim,
-            "dep": args.dep,
-        }
+        wandb.config.update(vars(args))
 
         if args.domain == "src":
             (
@@ -333,15 +315,6 @@ def main(args):
         devset = ZSBert_RGCN_RelDataset(dev_data, dev_lbl2id, tokenizer, args, domain=args.domain)
         devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         kill_cnt = 0
-
-        wandb.log({"src data": args.src_dataset})
-        wandb.log({"tgt data": args.tgt_dataset})
-        wandb.log({"seed": args.seed})
-        wandb.log({"dep": args.dep})
-        wandb.log({"amr": args.amr})
-        wandb.log({"gnn": args.gnn})
-        wandb.log({"gnn_depth": args.gnn_depth})
-        wandb.log({"alpha": args.alpha})
 
         for epoch in range(args.epochs):
             print(f"============== TRAIN ON THE {epoch+1}-th EPOCH ==============")
@@ -422,11 +395,11 @@ def main(args):
                     torch.save(best_model.state_dict(), checkpoint_file)
                     break
 
-            wandb.log({"best_f1": best_f1})
+            wandb.log({"running_best_f1": best_f1})
             print(
                 f"[best val] precision: {best_p:.4f}, recall: {best_r:.4f}, f1 score: {best_f1:.4f}"
             )
-
+        wandb.log({"best_f1": best_f1, "best_precision": best_p, "best_recall": best_r})
         torch.save(best_model.state_dict(), checkpoint_file)
 
         if args.domain == "src":
@@ -567,14 +540,6 @@ def main(args):
         wandb.log({"std_f1": np.std(f1_arr)})
         wandb.log({"precision": np.mean(prec_arr)})
         wandb.log({"recall": np.mean(rec_arr)})
-        wandb.log({"dep": args.dep})
-        wandb.log({"bert": args.bert_model})
-        wandb.log({"src_dataset": args.src_dataset})
-        wandb.log({"tgt_dataset": args.tgt_dataset})
-        wandb.log({"amr": args.amr})
-        wandb.log({"gnn": args.gnn})
-        wandb.log({"gnn_depth": args.gnn_depth})
-        wandb.log({"alpha": args.alpha})
 
 
 if __name__ == "__main__":
