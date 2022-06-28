@@ -13,18 +13,14 @@ import penman
 import spacy
 from tqdm.auto import tqdm
 
+from amr.amr_utils import PenmanToken
+from amr.indexing_utils import align_tokens_to_sentence
 
 DATASET_BASE_PATH = "/projects/flow_graphs/data"
 DATASETS = ["risec", "japflow", "chemu", "mscorpus"]
 
 default_spacy_fn = spacy.load("en_core_sci_md", disable=["lemmatizer", "ner"])
 
-
-@dataclass
-class PenmanToken:
-    token_str: str
-    start_idx: int
-    end_idx: int
 
 
 def load_corpus(corpus_name, split):
@@ -52,20 +48,6 @@ def sentencizer(text, spacy_fn=None):
     if spacy_fn is None:
         spacy_fn = default_spacy_fn
     return [format_sentence(sent.text) for sent in spacy_fn(text).sents]
-
-
-def align_tokens_to_sentence(token_list, sentence):
-    cur_ptr = 0
-    aligned_tokens = []
-    for token in token_list:
-        while not sentence[cur_ptr:].startswith(token):
-            cur_ptr += 1
-        if not sentence[cur_ptr:]:
-            raise AssertionError(f'Failed to align sentence "{sentence}" on token "{token}"')
-        aligned_tokens.append(PenmanToken(token, cur_ptr, cur_ptr + len(token)))
-        cur_ptr += len(token)
-    return aligned_tokens
-
 
 def annotate_sentences(
     sentences: str, amr_model: Any, spacy_fn: spacy.Language

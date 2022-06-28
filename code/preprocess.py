@@ -1,13 +1,16 @@
 from collections import defaultdict as ddict
 
+from nltk.stem import WordNetLemmatizer
 import numpy as np
 import spacy
 import stanza
 from torch.nn.utils.rnn import pad_sequence
 from tqdm.auto import tqdm
 
+from amr.amr_utils import is_valid_amr
 from amr.annotate_datasets import format_sentence
 from amr.graph_construction import construct_amr_data
+from amr.realignment_heuristics import add_heuristic_alignments
 from helper import *
 from intervals import *
 
@@ -1533,6 +1536,8 @@ def create_datafield(
     stanza_nlp = stanza.Pipeline(lang="en", processors="tokenize,pos,lemma,depparse")
     deprel_dict = load_deprels(enhanced=False)
 
+    lemmatizer = WordNetLemmatizer()
+
     rel2desc, all_rel2id, id2all_rel, rel2desc_emb = generate_reldesc()
     data = ddict(lambda: ddict(list))
     labels = {}
@@ -1551,6 +1556,11 @@ def create_datafield(
             parsed_amrs = pickle.load(f)
         # docs 		= json.load(open(f'{data_dir}/parses_{split}.json'))
         for count, (doc, amr_content) in tqdm(enumerate(zip(docs, parsed_amrs)), total=len(docs)):
+
+            for instance in amr_content:
+                if not is_valid_amr(instance["graph"]):
+                    continue
+                add_heuristic_alignments(instance["graph"], instance["text"], lemmatizer)
 
             # if count < 119:
             #     continue
@@ -1867,6 +1877,9 @@ def create_datafield(
                     pdb.set_trace()
 
                 # import pdb; pdb.set_trace()
+
+                # FIX AMR ALIGNMENT AND CONSTRUCT AMR DATA
+                ##################################################
 
                 amr_data_dict = construct_amr_data(
                     relation_amrs,

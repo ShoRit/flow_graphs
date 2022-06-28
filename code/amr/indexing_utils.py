@@ -1,6 +1,8 @@
 from typing import List, Tuple
 
-from amr.annotate_datasets import PenmanToken, sentencizer
+import penman
+
+from amr.amr_utils import PenmanToken, aligner_tokenize
 
 
 def compute_token_overlap_range(
@@ -31,3 +33,26 @@ def get_sentence_offsets(split_sentences):
         acc = acc + len(sentence) + 1
         sentence_offsets.append(acc)
     return sentence_offsets
+
+
+def align_tokens_to_sentence(token_list, sentence):
+    cur_ptr = 0
+    aligned_tokens = []
+    for token in token_list:
+        while not sentence[cur_ptr:].startswith(token):
+            cur_ptr += 1
+        if not sentence[cur_ptr:]:
+            raise AssertionError(f'Failed to align sentence "{sentence}" on token "{token}"')
+        aligned_tokens.append(PenmanToken(token, cur_ptr, cur_ptr + len(token)))
+        cur_ptr += len(token)
+    return aligned_tokens
+
+
+def get_unaligned_tokens(graph, sentence):
+    aligned_tokens = align_tokens_to_sentence(aligner_tokenize(sentence), sentence)
+
+    is_aligned = [False] * len(aligned_tokens)
+    for alignment in penman.surface.alignments(graph).values():
+        for index in alignment.indices:
+            is_aligned[index] = True
+    return [(i, token) for i ,(token_aligned, token) in enumerate(zip(is_aligned, aligned_tokens)) if not token_aligned]
