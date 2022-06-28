@@ -4,12 +4,13 @@ import penman
 import torch
 from torch_geometric.data import Data
 
-from amr.annotate_datasets import align_tokens_to_sentence
 from amr.create_amr_rel2id import UNKNOWN_RELATION
 from amr.indexing_utils import (
+    align_tokens_to_sentence,
     compute_token_overlap_range,
     get_sentence_offsets,
 )
+from amr.amr_utils import aligner_tokenize
 
 
 """
@@ -87,9 +88,7 @@ def construct_amr_data(
     bert_toks = sent_toks["input_ids"]
 
     aligned_tokens = [
-        align_tokens_to_sentence(
-            [token for token in re.split("\s", sentence) if token.strip()], sentence
-        )
+        align_tokens_to_sentence(aligner_tokenize(sentence), sentence)
         for sentence in split_sentences
     ]
 
