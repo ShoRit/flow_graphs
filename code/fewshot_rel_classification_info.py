@@ -206,9 +206,9 @@ def main(args):
         print("Fewshot training doesn't make sense on only one dataset!")
         sys.exit(1)
 
-    if args.dep == 0 and args.amr == 1:
+    if args.dep == "0" and args.amr == "1":
         print("This is a redundant pair of arguments, doesn't do anything right now!")
-        sys.exit(1)
+        sys.exit(0)
 
     device = seed_everything()
     src_dir = f"/projects/flow_graphs/data/{args.src_dataset}"
