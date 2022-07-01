@@ -4,11 +4,11 @@ parameters:
   seed:
     values: [0,1,2]
   fewshot:
-    values: [0.01, 0.05, 0.1]
+    values: [0.01, 0.05, 0.1, 0.2, 0.5]
   src_dataset:
-    values: ["risec"]
+    values: ["chemu"]
   tgt_dataset:
-    values: ["japflow", "chemu", "mscorpus"]
+    values: ["japflow", "risec", "mscorpus"]
   amr:
     values: [1]
   dep:
