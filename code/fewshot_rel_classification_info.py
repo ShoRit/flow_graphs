@@ -204,7 +204,7 @@ def create_bertconfig(bertconfig, args):
 def main(args):
     if args.src_dataset == args.tgt_dataset:
         print("Fewshot training doesn't make sense on only one dataset!")
-        sys.exit(1)
+        sys.exit(0)
 
     if args.dep == "0" and args.amr == "1":
         print("This is a redundant pair of arguments, doesn't do anything right now!")
