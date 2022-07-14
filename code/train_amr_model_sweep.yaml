@@ -2,9 +2,13 @@ program: rel_classification_info.py
 method: grid
 parameters:
   seed:
-    values: [1,2,445]
+    values: [0,1,2]
   dataset:
     values: ["risec", "japflow", "chemu", "mscorpus"]
+  dep:
+    values: [0, 1]
+  amr:
+    values: [0, 1]
 command: 
   - ${env}
   - python
@@ -16,9 +20,9 @@ command:
   - --seed
   - ${seed}
   - --amr 
-  - 1
+  - ${amr}
   - --dep 
-  - 1
+  - ${dep}
   - --mode
   - "train"
   - "--domain"
@@ -26,9 +30,9 @@ command:
   - "--gnn"
   - "rgcn"
   - "--alpha"
-  - "0.5"
+  - "1.0"
   - "--batch_size"
-  - "32"
+  - "16"
   - "--gnn_depth"
   - "2"
   - "--gpu"
