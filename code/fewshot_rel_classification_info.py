@@ -20,20 +20,10 @@ from sklearn.metrics import (
     recall_score,
 )
 import wandb
+from utils import get_device, seed_everything
 
 # wandb.login()
 # wandb.init(project="test-project", entity="flow-graphs-cmu")
-
-
-def seed_everything():
-    SEED = args.seed
-    random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
-    device = torch.device(f"cuda:{args.gpu}") if torch.cuda.is_available() else torch.device("cpu")
-    return device
 
 
 def get_args():
@@ -210,7 +200,9 @@ def main(args):
         print("This is a redundant pair of arguments, doesn't do anything right now!")
         sys.exit(0)
 
-    device = seed_everything()
+    seed_everything(args.seed)
+    device = get_device()
+
     src_dir = f"/projects/flow_graphs/data/{args.src_dataset}"
     src_file = f"{src_dir}/data_amr.dill"
     tgt_dir = f"/projects/flow_graphs/data/{args.tgt_dataset}"
