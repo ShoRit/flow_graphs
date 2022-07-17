@@ -135,4 +135,5 @@ dmypy.json
 
 # IDE stuff
 .vscode/
+.idea/
 wandb/
