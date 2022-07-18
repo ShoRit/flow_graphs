@@ -11,7 +11,6 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import (
-    AutoTokenizer,
     BertConfig,
 )
 
@@ -266,10 +265,7 @@ def main(args):
             train_lbl2id,
         ) = get_lbl_features(train_data, rel2desc_emb)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.bert_model)
-
-    trainset = GraphyRelationsDataset(train_data, train_lbl2id, tokenizer, args,
-                                      fewshot=args.fewshot)
+    trainset = GraphyRelationsDataset(train_data, train_lbl2id, fewshot=args.fewshot)
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
@@ -328,7 +324,7 @@ def main(args):
                 dev_data, rel2desc_emb
             )
 
-        devset = GraphyRelationsDataset(dev_data, dev_lbl2id, tokenizer, args)
+        devset = GraphyRelationsDataset(dev_data, dev_lbl2id)
         devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         kill_cnt = 0
 
@@ -392,9 +388,11 @@ def main(args):
                 print(f"Eval data {f1t} \t Prec {pt} \t Rec {rt}")
 
             else:
-                preds = extract_relation_emb(model, devloader, device=device, use_amr=args.amr).cpu(
-
-                ).numpy()
+                preds = (
+                    extract_relation_emb(model, devloader, device=device, use_amr=args.amr)
+                    .cpu()
+                    .numpy()
+                )
                 pt, rt, f1t, h_K = evaluate(preds, dev_y_attr, dev_y, dev_idxmap, args.dist_func)
                 print(
                     f"[val] f1 score: {f1t:.4f}, precision: {pt:.4f}, recall: {rt:.4f}, H@K :{h_K}"
@@ -435,7 +433,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, rel2desc_emb)
 
-        testset = GraphyRelationsDataset(test_data, test_lbl2id, tokenizer, args)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         best_model = best_model.to(device)
         best_model.eval()
@@ -463,10 +461,10 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, rel2desc_emb)
 
-        testset = GraphyRelationsDataset(test_data, test_lbl2id, tokenizer, args)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
 
-        model = ZSBert_RGCN.from_pretrained(args.bert_model, config=tgt_bertconfig)
+        model = BertRGCNRelationClassifier.from_pretrained(args.bert_model, config=tgt_bertconfig)
         model = model.to(device)
         model.load_state_dict(torch.load(tgt_checkpoint_file, map_location=device))
         model.eval()
@@ -509,12 +507,10 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, rel2desc_emb)
 
-        testset = GraphyRelationsDataset(
-            test_data, test_lbl2id, tokenizer, args, domain=args.domain
-        )
+        testset = GraphyRelationsDataset(test_data, test_lbl2id)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
 
-        model = ZSBert_RGCN.from_pretrained(args.bert_model, config=tgt_bertconfig)
+        model = BertRGCNRelationClassifier.from_pretrained(args.bert_model, config=tgt_bertconfig)
         model = model.to(device)
 
         f1_arr, prec_arr, rec_arr, hits_arr = [], [], [], []

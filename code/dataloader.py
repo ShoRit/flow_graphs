@@ -77,7 +77,7 @@ class ZSBertRelDataset(Dataset):
 
 
 class GraphyRelationsDataset(Dataset):
-    def __init__(self, dataset, rel2id, tokenizer, params, fewshot=1.0, skip_hashing=False):
+    def __init__(self, dataset, rel2id, fewshot=1.0, skip_hashing=False):
         if fewshot == 1.0:
             self.dataset = tuple(dataset)
         else:
