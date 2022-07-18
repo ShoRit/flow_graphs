@@ -204,10 +204,7 @@ def main(args):
     src_dir = f"/projects/flow_graphs/data/{args.src_dataset}"
     src_file = f"{src_dir}/data_amr.dill"
     tgt_dir = f"/projects/flow_graphs/data/{args.tgt_dataset}"
-    tgt_file = f"{tgt_dir}/data-{args.fewshot}_amr.dill"
-
-    all_tgt_file = f"{tgt_dir}/data.dill"
-    omit_rels = args.omit_rels.split(",")
+    tgt_file = f"{tgt_dir}/data_amr.dill"
 
     if check_file(src_file):
         src_dataset = load_dill(src_file)
@@ -216,7 +213,6 @@ def main(args):
 
     if check_file(tgt_file):
         tgt_dataset = load_dill(tgt_file)
-        all_tgt_dataset = load_dill(all_tgt_file)
     else:
         raise FileNotFoundError("TGT FILE IS NOT CREATED")
 
@@ -226,20 +222,19 @@ def main(args):
         tgt_dataset["dev"]["rels"],
         tgt_dataset["test"]["rels"],
     )
-    all_train_data = all_tgt_dataset["train"]["rels"]
 
     # here we end up creating relations based on the description of the label completely, hence we need a unified form of labels to use for the seen case.
 
     rel2desc, all_rel2id, id2all_rel, rel2desc_emb = generate_reldesc(device=device)
 
     print(
-        "train size: {}, dev size {}, test size: {}".format(
-            len(train_data), len(dev_data), len(test_data)
+        "train size: {}/{}, dev size {}, test size: {}".format(
+            int(len(train_data) * args.fewshot), len(train_data), len(dev_data), len(test_data)
         )
     )
     print("Data is successfully loaded")
     src_train_label = [data["label"] for data in src_train_data]
-    tgt_train_label = [data["label"] for data in all_train_data]
+    tgt_train_label = [data["label"] for data in train_data]
 
     src_bertconfig = BertConfig.from_pretrained(
         args.bert_model, num_labels=len(set(src_train_label))
@@ -273,14 +268,15 @@ def main(args):
 
     tokenizer = AutoTokenizer.from_pretrained(args.bert_model)
 
-    trainset = GraphyRelationsDataset(train_data, train_lbl2id, tokenizer, args)
+    trainset = GraphyRelationsDataset(train_data, train_lbl2id, tokenizer, args,
+                                      fewshot=args.fewshot)
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
 
     best_p, best_r, best_f1 = 0, 0, 0
-    tgt_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.fewshot}-src--dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
-    src_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
+    tgt_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.fewshot}-src--dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-seed_{args.seed}-lr_{args.lr}.pt"
+    src_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-seed_{args.seed}-lr_{args.lr}.pt"
     if not check_file(src_checkpoint_file):
         src_checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
 
@@ -317,13 +313,7 @@ def main(args):
             name=f'{tgt_checkpoint_file.split("/")[-1]}',
         )
 
-        wandb.config = {
-            "learning_rate": args.lr,
-            "epochs": args.epochs,
-            "batch_size": args.batch_size,
-            "node_vec": args.node_emb_dim,
-            "dep": args.dep,
-        }
+        wandb.config = dict(args)
 
         if args.domain == "src":
             (
@@ -402,7 +392,7 @@ def main(args):
                 print(f"Eval data {f1t} \t Prec {pt} \t Rec {rt}")
 
             else:
-                preds = extract_relation_emb(model, devloader, device=device, args.amr).cpu(
+                preds = extract_relation_emb(model, devloader, device=device, use_amr=args.amr).cpu(
 
                 ).numpy()
                 pt, rt, f1t, h_K = evaluate(preds, dev_y_attr, dev_y, dev_idxmap, args.dist_func)

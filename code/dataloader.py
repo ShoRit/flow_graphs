@@ -1,3 +1,5 @@
+import random
+
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
@@ -75,19 +77,23 @@ class ZSBertRelDataset(Dataset):
 
 
 class GraphyRelationsDataset(Dataset):
-    def __init__(
-        self,
-        dataset,
-        rel2id,
-        tokenizer,
-        params,
-        data_idx=0,
-    ):
-        self.dataset = dataset
+    def __init__(self, dataset, rel2id, tokenizer, params, fewshot=1.0, skip_hashing=False):
+        if fewshot == 1.0:
+            self.dataset = tuple(dataset)
+        else:
+            self.dataset = tuple(
+                random.sample(
+                    dataset,
+                    int(fewshot * len(dataset)),
+                )
+            )
+
         self.rel2id = rel2id
-        self.p = params
-        self.tokenizer = tokenizer
-        self.data_idx = data_idx
+
+        if not skip_hashing:
+            self.dataset_hash = hash(self.dataset)
+        else:
+            self.dataset_hash = None
 
     def __len__(self):
         return len(self.dataset)
