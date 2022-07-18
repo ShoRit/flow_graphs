@@ -241,7 +241,7 @@ def main(args):
             train_lbl2id,
         ) = get_lbl_features(train_data, None)
 
-    trainset = GraphyRelationsDataset(train_data, train_lbl2id)
+    trainset = GraphyRelationsDataset(train_data, train_lbl2id, args.max_seq_len)
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
@@ -276,7 +276,7 @@ def main(args):
         else:
             dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_lbl_features(dev_data, None)
 
-        devset = GraphyRelationsDataset(dev_data, dev_lbl2id)
+        devset = GraphyRelationsDataset(dev_data, dev_lbl2id, args.max_seq_len)
         devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         kill_cnt = 0
 
@@ -382,7 +382,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, None)
 
-        testset = GraphyRelationsDataset(test_data, test_lbl2id)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id, args.max_seq_len)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         best_model = best_model.to(device)
         best_model.eval()
@@ -410,7 +410,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, None)
 
-        testset = GraphyRelationsDataset(test_data, test_lbl2id)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id, args.max_seq_len)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
 
         model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
@@ -460,7 +460,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, None)
 
-        testset = GraphyRelationsDataset(test_data, test_lbl2id)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id, args.max_seq_len)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
 
         model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)

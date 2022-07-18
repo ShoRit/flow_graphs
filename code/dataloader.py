@@ -77,7 +77,7 @@ class ZSBertRelDataset(Dataset):
 
 
 class GraphyRelationsDataset(Dataset):
-    def __init__(self, dataset, rel2id, fewshot=1.0, skip_hashing=False):
+    def __init__(self, dataset, rel2id, max_seq_len, fewshot=1.0, skip_hashing=False):
         if fewshot == 1.0:
             self.dataset = tuple(dataset)
         else:
@@ -89,6 +89,7 @@ class GraphyRelationsDataset(Dataset):
             )
 
         self.rel2id = rel2id
+        self.max_seq_len = max_seq_len
 
         if not skip_hashing:
             self.dataset_hash = None  # hash(self.dataset)
@@ -100,11 +101,23 @@ class GraphyRelationsDataset(Dataset):
 
     def __getitem__(self, idx):
         instance = self.dataset[idx]
+
+        tokens = torch.tensor(
+            instance["tokens"] + [0] * (self.max_seq_len - len(instance["tokens"]))
+        )
+        e1_mask = torch.tensor(
+            instance["arg1_ids"] + [0] * (self.max_seq_len - len(instance["tokens"]))
+        )
+        e2_mask = torch.tensor(
+            instance["arg2_ids"] + [0] * (self.max_seq_len - len(instance["tokens"]))
+        )
+        segments = torch.tensor([0] * len(tokens))
+
         return {
-            "tokens": torch.tensor(instance["tokens"]),
-            "segments": torch.tensor([0] * len(instance["tokens"])),
-            "e1_mask": torch.tensor(instance["arg1_ids"]),
-            "e2_mask": torch.tensor(instance["arg2_ids"]),
+            "tokens": torch.tensor(tokens),
+            "segments": torch.tensor(segments),
+            "e1_mask": torch.tensor(e1_mask),
+            "e2_mask": torch.tensor(e2_mask),
             "label": torch.tensor(self.rel2id[instance["label"]]),
             "dep_data": instance["dep_data"],
             "amr_data": instance["dep_data"],

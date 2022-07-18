@@ -265,7 +265,8 @@ def main(args):
             train_lbl2id,
         ) = get_lbl_features(train_data, rel2desc_emb)
 
-    trainset = GraphyRelationsDataset(train_data, train_lbl2id, fewshot=args.fewshot)
+    trainset = GraphyRelationsDataset(train_data, train_lbl2id, args.max_seq_len,
+                                      fewshot=args.fewshot)
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
@@ -324,7 +325,7 @@ def main(args):
                 dev_data, rel2desc_emb
             )
 
-        devset = GraphyRelationsDataset(dev_data, dev_lbl2id)
+        devset = GraphyRelationsDataset(dev_data, dev_lbl2id, args.max_seq_len)
         devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         kill_cnt = 0
 
@@ -433,7 +434,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, rel2desc_emb)
 
-        testset = GraphyRelationsDataset(test_data, test_lbl2id)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id, args.max_seq_len)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         best_model = best_model.to(device)
         best_model.eval()
@@ -461,7 +462,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, rel2desc_emb)
 
-        testset = GraphyRelationsDataset(test_data, test_lbl2id)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id, args.max_seq_len)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
 
         model = BertRGCNRelationClassifier.from_pretrained(args.bert_model, config=tgt_bertconfig)
@@ -507,7 +508,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, rel2desc_emb)
 
-        testset = GraphyRelationsDataset(test_data, test_lbl2id)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id, args.max_seq_len)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
 
         model = BertRGCNRelationClassifier.from_pretrained(args.bert_model, config=tgt_bertconfig)
