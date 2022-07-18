@@ -86,11 +86,11 @@ def get_lbl_features(data, rel2desc_emb):
         test_y.append(lbl)
         test_idxmap[i] = lbl
 
-    test_y_attr = [rel2desc_emb[i] for i in lbl2id]
-    test_y_attr = np.array(test_y_attr)
-    test_y = np.array(test_y)
+    # test_y_attr = [rel2desc_emb[i] for i in lbl2id]
+    # test_y_attr = np.array(test_y_attr)
+    # test_y = np.array(test_y)
 
-    return test_y, test_idxmap, labels, test_y_attr, lbl2id
+    return test_y, test_idxmap, labels, None, lbl2id
 
 
 def get_known_lbl_features(data, rel2desc_emb, lbl2id):
@@ -104,11 +104,11 @@ def get_known_lbl_features(data, rel2desc_emb, lbl2id):
         test_y.append(lbl)
         test_idxmap[i] = lbl
 
-    test_y_attr = [rel2desc_emb[i] for i in lbl2id]
-    test_y_attr = np.array(test_y_attr)
-    test_y = np.array(test_y)
+    # test_y_attr = [rel2desc_emb[i] for i in lbl2id]
+    # test_y_attr = np.array(test_y_attr)
+    # test_y = np.array(test_y)
 
-    return test_y, test_idxmap, labels, test_y_attr, lbl2id
+    return test_y, test_idxmap, labels, None, lbl2id
 
 
 def seen_eval(model, loader, device):
@@ -189,8 +189,6 @@ def main(args):
             tgt_dataset["test"]["rels"],
         )
 
-    rel2desc, all_rel2id, id2all_rel, rel2desc_emb = generate_reldesc()
-
     print(
         "train size: {}, dev size {}, test size: {}".format(
             len(train_data), len(dev_data), len(test_data)
@@ -233,7 +231,7 @@ def main(args):
             train_labels,
             train_y_attr,
             train_lbl2id,
-        ) = get_known_lbl_features(train_data, rel2desc_emb, lbl2id)
+        ) = get_known_lbl_features(train_data, None, lbl2id)
     else:
         (
             train_y,
@@ -241,7 +239,7 @@ def main(args):
             train_labels,
             train_y_attr,
             train_lbl2id,
-        ) = get_lbl_features(train_data, rel2desc_emb)
+        ) = get_lbl_features(train_data, None)
 
     trainset = GraphyRelationsDataset(train_data, train_lbl2id)
     trainloader = DataLoader(
@@ -274,11 +272,9 @@ def main(args):
                 dev_labels,
                 dev_y_attr,
                 dev_lbl2id,
-            ) = get_known_lbl_features(dev_data, rel2desc_emb, lbl2id)
+            ) = get_known_lbl_features(dev_data, None, lbl2id)
         else:
-            dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_lbl_features(
-                dev_data, rel2desc_emb
-            )
+            dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_lbl_features(dev_data, None)
 
         devset = GraphyRelationsDataset(dev_data, dev_lbl2id)
         devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
@@ -291,7 +287,7 @@ def main(args):
             model.train()
             y_true, y_pred = [], []
 
-            for data in tqdm(trainloader):
+            for data in trainloader:
                 tokens_tensors = data["tokens_tensors"].to(device)
                 segments_tensors = data["segments_tensors"].to(device)
                 e1_mask = data["e1_mask"].to(device)
@@ -312,7 +308,6 @@ def main(args):
                     attention_mask=masks_tensors,
                     labels=labels,
                     graph_data=graph_data,
-                    device=device,
                 )
                 loss, logits = output_dict["loss"], output_dict["logits"]
 
@@ -377,7 +372,7 @@ def main(args):
                 test_labels,
                 test_y_attr,
                 test_lbl2id,
-            ) = get_known_lbl_features(test_data, rel2desc_emb, lbl2id)
+            ) = get_known_lbl_features(test_data, None, lbl2id)
         else:
             (
                 test_y,
@@ -385,7 +380,7 @@ def main(args):
                 test_labels,
                 test_y_attr,
                 test_lbl2id,
-            ) = get_lbl_features(test_data, rel2desc_emb)
+            ) = get_lbl_features(test_data, None)
 
         testset = GraphyRelationsDataset(test_data, test_lbl2id)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
@@ -405,7 +400,7 @@ def main(args):
                 test_labels,
                 test_y_attr,
                 test_lbl2id,
-            ) = get_known_lbl_features(test_data, rel2desc_emb, lbl2id)
+            ) = get_known_lbl_features(test_data, None, lbl2id)
         else:
             (
                 test_y,
@@ -413,7 +408,7 @@ def main(args):
                 test_labels,
                 test_y_attr,
                 test_lbl2id,
-            ) = get_lbl_features(test_data, rel2desc_emb)
+            ) = get_lbl_features(test_data, None)
 
         testset = GraphyRelationsDataset(test_data, test_lbl2id)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
@@ -455,7 +450,7 @@ def main(args):
                 test_labels,
                 test_y_attr,
                 test_lbl2id,
-            ) = get_known_lbl_features(test_data, rel2desc_emb, lbl2id)
+            ) = get_known_lbl_features(test_data, None, lbl2id)
         else:
             (
                 test_y,
@@ -463,7 +458,7 @@ def main(args):
                 test_labels,
                 test_y_attr,
                 test_lbl2id,
-            ) = get_lbl_features(test_data, rel2desc_emb)
+            ) = get_lbl_features(test_data, None)
 
         testset = GraphyRelationsDataset(test_data, test_lbl2id)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)

@@ -91,7 +91,7 @@ class GraphyRelationsDataset(Dataset):
         self.rel2id = rel2id
 
         if not skip_hashing:
-            self.dataset_hash = hash(self.dataset)
+            self.dataset_hash = None  # hash(self.dataset)
         else:
             self.dataset_hash = None
 
