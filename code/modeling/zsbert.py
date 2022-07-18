@@ -1,11 +1,9 @@
-import torch
-import random
-import torch.nn as nn
-from torch.nn import MSELoss
-import torch.nn.functional as F
-from transformers import BertModel, BertConfig, BertPreTrainedModel, BertTokenizer
-from torch_geometric.nn import FastRGCNConv, RGCNConv, RGATConv
 import numpy as np
+import torch
+from torch import nn as nn
+from transformers import BertModel, BertPreTrainedModel
+
+from modeling.graph_components import DeepNet
 
 
 class ZSBert(BertPreTrainedModel):
@@ -108,90 +106,6 @@ class ZSBert(BertPreTrainedModel):
             outputs,
             relation_embeddings,
         )  # (loss), logits, (hidden_states), (attentions)
-
-
-class Net(torch.nn.Module):
-    def __init__(self, num_node_features, num_relations):
-        super().__init__()
-        self.conv1 = RGCNConv(
-            in_channels=num_node_features,
-            out_channels=num_node_features,
-            num_relations=num_relations,
-        )
-
-    def forward(self, x, edge_index, edge_type):
-        x = F.relu(self.conv1(x, edge_index, edge_type))
-        return x
-
-
-# class Net(torch.nn.Module):
-#     def __init__(self, num_node_features, num_relations):
-#         super().__init__()
-#         self.conv1 = RGCNConv(in_channels=num_node_features, out_channels=num_node_features, num_relations=num_relations)
-#     def forward(self, x, edge_index, edge_type):
-#         x = F.relu(self.conv1(x, edge_index, edge_type))
-#         return x
-
-
-class GNNDropout(torch.nn.Module):
-    def __init__(self, params):
-        super().__init__()
-        self.drop = nn.Dropout(params.hidden_dropout_prob)
-
-    def forward(self, inp):
-        x, edge_index, edge_type = inp
-        return self.drop(x), edge_index, edge_type
-
-
-class GNNReLu(torch.nn.Module):
-    def __init__(self, params):
-        super().__init__()
-        self.relu = nn.ReLU()
-
-    def forward(self, inp):
-        x, edge_index, edge_type = inp
-        return self.relu(x), edge_index, edge_type
-
-
-class GNNConv(torch.nn.Module):
-    def __init__(self, params, num_rels):
-        super().__init__()
-        self.params = params
-        if self.params.gnn == "rgcn":
-            self.gnn = RGCNConv(
-                in_channels=self.params.node_emb_dim,
-                out_channels=self.params.node_emb_dim,
-                num_relations=num_rels,
-            )
-        elif self.params.gnn == "rgat":
-            self.gnn = RGATConv(
-                in_channels=self.params.node_emb_dim,
-                out_channels=self.params.node_emb_dim,
-                num_relations=num_rels,
-            )
-
-    def forward(self, inp):
-        x, edge_index, edge_type = inp
-        return self.gnn(x, edge_index, edge_type), edge_index, edge_type
-
-
-class DeepNet(torch.nn.Module):
-    def __init__(self, params, num_rels):
-        super().__init__()
-        self.params = params
-        self.rgcn_layers = []
-        for i in range(self.params.gnn_depth - 1):
-            self.rgcn_layers.append(GNNConv(self.params, num_rels))
-            self.rgcn_layers.append(GNNReLu(self.params))
-            self.rgcn_layers.append(GNNDropout(self.params))
-
-        self.rgcn_layers.append(GNNConv(self.params, num_rels))
-        self.rgcn_layers.append(GNNReLu(self.params))
-        self.rgcn_module = nn.Sequential(*self.rgcn_layers)
-
-    def forward(self, x, edge_index, edge_type):
-        x, edge_index, edge_type = self.rgcn_module((x, edge_index, edge_type))
-        return x
 
 
 class ZSBert_RGCN(BertPreTrainedModel):
@@ -347,69 +261,3 @@ class ZSBert_RGCN(BertPreTrainedModel):
             output_dict["loss"] = loss
 
         return output_dict
-
-
-"""
-class BertRelClass(nn.Module):
-	def __init__(self, config):
-		super().__init__()
-		self.config 	= config
-		self.num_labels = config.num_labels
-		self.bert		= BertModel(config)
-		self.dropout	= nn.Dropout(self.p.drop)
-		fc_in			= self.bert.config.hidden_size * 2
-		self.classifier	= nn.Linear(fc_in, self.num_labels)
-
-		self.bert 		= BertModel(config)
-		self.dropout 	= nn.Dropout(config.hidden_dropout_prob)
-		if self.config.dep =='1':
-			self.rgcn    = Net(config.node_vec, config.dep_rels)
-			self.fclayer = nn.Linear(config.hidden_size*3 + config.node_vec*2, self.relation_emb_dim)
-		else:
-			self.fclayer = nn.Linear(config.hidden_size*3, self.relation_emb_dim)
-			
-		self.classifier = nn.Linear(self.relation_emb_dim, self.config.num_labels)
-		self.init_weights()
-
-	
-	def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, e1_mask=None, e2_mask=None, \
-					head_mask=None,inputs_embeds=None,input_relation_emb=None,labels=None, graph_data = None, device='cpu'):
-     
-		outputs = self.bert(
-			input_ids,
-			attention_mask=attention_mask,
-			token_type_ids=token_type_ids,
-			position_ids=position_ids,
-			head_mask=head_mask,
-			inputs_embeds=inputs_embeds,
-		)		
-  		
-		sequence_output 	= outputs[0] # Sequence of hidden-states of the last layer.
-		pooled_output   	= outputs[1] # Last layer hidden-state of the [CLS] token f
-
-
-		arg1_emb			= torch.matmul(e1_mask.unsqueeze(dim=1),sequence_output).squeeze(dim=1)
-		arg2_emb			= torch.matmul(e2_mask.unsqueeze(dim=1),sequence_output).squeeze(dim=1)
-		arg1_sum			= sum(e1_mask.transpose(0,1))+1e-5
-		arg2_sum			= sum(e1_mask.transpose(0,1))+1e-5
-  
-		arg1_emb 			= arg1_emb/arg1_sum.view(len(arg1_sum),1)
-		arg2_emb			= arg2_emb/arg2_sum.view(len(arg2_sum),1)
-
-		arg_emb 			= torch.cat((arg1_emb,arg2_emb), dim =1)
-
-
-		logits 				= self.classifier(arg_emb)
-
-		if self.p.wgh_loss:
-			loss 				= F.binary_cross_entropy_with_logits(logits, bat['labels'].float(), weight = self.weights, reduction='sum')
-		else:
-			loss 				= F.binary_cross_entropy_with_logits(logits, bat['labels'].float(), reduction='sum')
-
-		loss_val 			= loss.item()
-
-		if loss_val != loss_val: import pdb; pdb.set_trace()
-
-		return loss, logits
-
-"""

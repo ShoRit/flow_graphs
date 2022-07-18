@@ -1,7 +1,7 @@
 from helper import *
 from dataloader import *
 from preprocess import *
-from model import ZSBert, ZSBert_RGCN
+from modeling.zsbert import ZSBert, ZSBert_RGCN
 from torch.utils.data import DataLoader
 from zsbert_evaluate import extract_relation_emb, evaluate
 from transformers import (
