@@ -13,4 +13,4 @@ def seed_everything(seed=0):
 
 
 def get_device(gpu_index: int = 0):
-    return
+    return f"cuda:{gpu_index}" if torch.cuda.is_available() else "cpu"
