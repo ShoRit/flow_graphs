@@ -1,25 +1,28 @@
-from helper import *
-from dataloader import *
-from preprocess import *
-from modeling.zsbert import ZSBert, ZSBert_RGCN
-from torch.utils.data import DataLoader
-from zsbert_evaluate import extract_relation_emb, evaluate
-from transformers import (
-    AutoTokenizer,
-    BertModel,
-    BertConfig,
-    BertPreTrainedModel,
-    BertTokenizer,
-)
+import argparse
+
+import numpy as np
 from sklearn.metrics import (
-    classification_report,
     f1_score,
     precision_score,
     recall_score,
 )
-import wandb
+import torch
+from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
+from transformers import (
+    AutoTokenizer,
+    BertConfig,
+)
 
+from dataloader import GraphyRelationsDataset, create_mini_batch
+from helper import check_file, load_deprels, load_dill
+from modeling.bert import BertRGCNRelationClassifier
+from modeling.zsbert import ZSBert_RGCN
+from preprocess import generate_reldesc
 from utils import get_device, seed_everything
+import wandb
+from zsbert_evaluate import evaluate, extract_relation_emb
+
 
 # wandb.login()
 # wandb.init(project="test-project", entity="flow-graphs-cmu")
@@ -109,31 +112,6 @@ def get_known_lbl_features(data, rel2desc_emb, lbl2id):
     return test_y, test_idxmap, labels, test_y_attr, lbl2id
 
 
-# def extract_relation_emb(model, testloader, device):
-#     out_relation_embs = None
-#     model.eval()
-#     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-#     for data in tqdm(testloader):
-#         tokens_tensors, segments_tensors, marked_e1, marked_e2, masks_tensors, relation_emb, labels, graph_data = [t.to(device) for t in data if t is not None]
-
-#         # tokens_tensors, segments_tensors, marked_e1, marked_e2, masks_tensors, relation_emb = [t.to(device) for t in data if t is not None]
-#         with torch.no_grad():
-#             outputs, out_relation_emb = model(input_ids=tokens_tensors,
-#                                         token_type_ids=segments_tensors,
-#                                         e1_mask=marked_e1,
-#                                         e2_mask=marked_e2,
-#                                         attention_mask=masks_tensors,
-#                                         input_relation_emb=relation_emb,
-#                                         graph_data= graph_data,
-# 										device =device)
-#             logits = outputs[0]
-#         if out_relation_embs is None:
-#             out_relation_embs = out_relation_emb
-#         else:
-#             out_relation_embs = torch.cat((out_relation_embs, out_relation_emb))
-#     return out_relation_embs
-
-
 def seen_eval(model, loader, device):
     model.eval()
     correct, total = 0, 0
@@ -187,20 +165,17 @@ def main(args):
     tgt_dir = f"/projects/flow_graphs/data/{args.tgt_dataset}"
     tgt_file = f"{tgt_dir}/data_amr.dill"
 
-    omit_rels = args.omit_rels.split(",")
     deprel_dict = load_deprels(enhanced=False)
 
     if check_file(src_file):
         src_dataset = load_dill(src_file)
     else:
-        print("SRC FILE IS NOT CREATED")
+        raise FileNotFoundError("SRC FILE IS NOT CREATED")
 
     if check_file(tgt_file):
         tgt_dataset = load_dill(tgt_file)
     else:
-        print("TGT FILE IS NOT CREATED")
-        # src_dataset,deprel_dict				    =   create_datafield(tgt_dir,['test'],args.bert_model, omit_rels= omit_rels)
-        # dump_dill((src_dataset,deprel_dict), src_file)
+        raise FileNotFoundError("TGT FILE IS NOT CREATED")
 
     if args.src_dataset == args.tgt_dataset:
         train_data, dev_data, test_data = (
@@ -214,10 +189,6 @@ def main(args):
             tgt_dataset["dev"]["rels"],
             tgt_dataset["test"]["rels"],
         )
-
-    # here we end up creating relations based on the description of the label completely, hence we need a unified form of labels to use for the seen case.
-
-    rel2desc, all_rel2id, id2all_rel, rel2desc_emb = generate_reldesc()
 
     print(
         "train size: {}, dev size {}, test size: {}".format(
@@ -245,7 +216,11 @@ def main(args):
     bertconfig.amr = args.amr
     bertconfig.gnn = args.gnn
 
-    model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
+    use_graph_data = bool(args.amr) or bool(args.dep)
+
+    model = BertRGCNRelationClassifier.from_pretrained(
+        args.bert_model, config=bertconfig, use_graph_data=use_graph_data
+    )
     model = model.to(device)
 
     if args.domain == "src":
@@ -269,7 +244,7 @@ def main(args):
 
     tokenizer = AutoTokenizer.from_pretrained(args.bert_model)
 
-    trainset = ZSBert_RGCN_RelDataset(train_data, train_lbl2id, tokenizer, args, domain="src")
+    trainset = GraphyRelationsDataset(train_data, train_lbl2id, tokenizer, args)
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
@@ -277,9 +252,11 @@ def main(args):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     best_p, best_r, best_f1 = 0, 0, 0
-    # checkpoint_file													= f'../checkpoints/{args.src_dataset}_{args.domain}_alpha_{args.alpha}_gamma_{args.gamma}_dist_{args.dist_func}_dep_{args.dep}.pt'
 
-    checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.domain}-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
+    checkpoint_file = (
+        f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-"
+        f"{args.tgt_dataset}-{args.domain}-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-seed_{args.seed}-lr_{args.lr}.pt"
+    )
 
     if args.mode == "train":
         wandb.login()
@@ -304,7 +281,9 @@ def main(args):
                 dev_data, rel2desc_emb
             )
 
-        devset = ZSBert_RGCN_RelDataset(dev_data, dev_lbl2id, tokenizer, args, domain=args.domain, use_amrs=bool(args.amr))
+        devset = GraphyRelationsDataset(
+            dev_data, dev_lbl2id, tokenizer, args
+        )
         devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         kill_cnt = 0
 
@@ -316,26 +295,24 @@ def main(args):
             y_true, y_pred = [], []
 
             for data in tqdm(trainloader):
+                tokens_tensors = data["tokens_tensors"].to(device)
+                segments_tensors = data["segments_tensors"].to(device)
+                e1_mask = data["e1_mask"].to(device)
+                e2_mask = data["e2_mask"].to(device)
+                masks_tensors = data["masks_tensors"].to(device)
+                labels = data["label_ids"].to(device)
+                dependency_tensors = data["dependency_data"].to(device)
+                amr_tensors = data["amr_data"].to(device)
 
-                (
-                    tokens_tensors,
-                    segments_tensors,
-                    marked_e1,
-                    marked_e2,
-                    masks_tensors,
-                    relation_emb,
-                    labels,
-                    graph_data,
-                ) = [t.to(device) for t in data]
+                graph_data = amr_tensors if args.amr else dependency_tensors
 
                 optimizer.zero_grad()
                 output_dict = model(
                     input_ids=tokens_tensors,
                     token_type_ids=segments_tensors,
-                    e1_mask=marked_e1,
-                    e2_mask=marked_e2,
+                    e1_mask=e1_mask,
+                    e2_mask=e2_mask,
                     attention_mask=masks_tensors,
-                    input_relation_emb=relation_emb,
                     labels=labels,
                     graph_data=graph_data,
                     device=device,
@@ -352,8 +329,6 @@ def main(args):
                 wandb.log({"batch_loss": loss.item()})
                 y_pred.extend(list(np.array(pred.cpu().detach())))
                 y_true.extend(list(np.array(labels.cpu().detach())))
-
-                # if step % 1000 == 0: print(f'[step {step}]' + '=' * (step//1000))
 
             print(f'train acc: {correct/total}, f1 : {f1_score(y_true,y_pred, average="macro")}')
 
@@ -373,7 +348,7 @@ def main(args):
                 preds = extract_relation_emb(model, devloader, device=device).cpu().numpy()
                 pt, rt, f1t, h_K = evaluate(preds, dev_y_attr, dev_y, dev_idxmap, args.dist_func)
                 print(
-                    f"[val] precision: {pt:.4f}, recall: {rt:.4f}, f1 score: {f1t:.4f}, H@K :{h_K}"
+                    f"[val] f1 score: {f1t:.4f}, precision: {pt:.4f}, recall: {rt:.4f}, H@K :{h_K}"
                 )
 
             if f1t > best_f1:
@@ -411,7 +386,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, rel2desc_emb)
 
-        testset = ZSBert_RGCN_RelDataset(test_data, test_lbl2id, tokenizer, args)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id, tokenizer, args)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         best_model = best_model.to(device)
         best_model.eval()
@@ -439,7 +414,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, rel2desc_emb)
 
-        testset = ZSBert_RGCN_RelDataset(test_data, test_lbl2id, tokenizer, args)
+        testset = GraphyRelationsDataset(test_data, test_lbl2id, tokenizer, args)
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
 
         model = ZSBert_RGCN.from_pretrained(args.bert_model, config=bertconfig)
@@ -485,7 +460,7 @@ def main(args):
                 test_lbl2id,
             ) = get_lbl_features(test_data, rel2desc_emb)
 
-        testset = ZSBert_RGCN_RelDataset(
+        testset = GraphyRelationsDataset(
             test_data, test_lbl2id, tokenizer, args, domain=args.domain
         )
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)

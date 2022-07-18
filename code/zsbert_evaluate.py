@@ -39,31 +39,30 @@ def compute_macro_PRF(predicted_idx, gold_idx, i=-1, empty_label=None):
     return avg_prec, avg_rec, f1
 
 
-def extract_relation_emb(model, testloader, device):
+def extract_relation_emb(model, testloader, device, use_amr):
     out_relation_embs = None
     model.eval()
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     for data in tqdm(testloader):
 
-        (
-            tokens_tensors,
-            segments_tensors,
-            marked_e1,
-            marked_e2,
-            masks_tensors,
-            relation_emb,
-            labels,
-            graph_data,
-        ) = [t.to(device) if t is not None else t for t in data]
+        tokens_tensors = data["tokens_tensors"].to(device)
+        segments_tensors = data["segments_tensors"].to(device)
+        e1_mask = data["e1_mask"].to(device)
+        e2_mask = data["e2_mask"].to(device)
+        masks_tensors = data["masks_tensors"].to(device)
+        labels = data["label_ids"].to(device)
+        dependency_tensors = data["dependency_data"].to(device)
+        amr_tensors = data["amr_data"].to(device)
+
+        graph_data = amr_tensors if use_amr else dependency_tensors
 
         with torch.no_grad():
             outputs_dict = model(
                 input_ids=tokens_tensors,
                 token_type_ids=segments_tensors,
-                e1_mask=marked_e1,
-                e2_mask=marked_e2,
+                e1_mask=e1_mask,
+                e2_mask=e2_mask,
                 attention_mask=masks_tensors,
-                input_relation_emb=relation_emb,
                 labels=labels,
                 graph_data=graph_data,
                 device=device,
