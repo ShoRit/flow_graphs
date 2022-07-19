@@ -114,10 +114,10 @@ class GraphyRelationsDataset(Dataset):
         segments = torch.tensor([0] * len(tokens))
 
         return {
-            "tokens": torch.tensor(tokens),
-            "segments": torch.tensor(segments),
-            "e1_mask": torch.tensor(e1_mask),
-            "e2_mask": torch.tensor(e2_mask),
+            "tokens": tokens,
+            "segments": segments,
+            "e1_mask": e1_mask,
+            "e2_mask": e2_mask,
             "label": torch.tensor(self.rel2id[instance["label"]]),
             "dep_data": instance["dep_data"],
             "amr_data": instance["dep_data"],

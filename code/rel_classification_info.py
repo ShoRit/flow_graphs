@@ -111,33 +111,31 @@ def get_known_lbl_features(data, rel2desc_emb, lbl2id):
     return test_y, test_idxmap, labels, None, lbl2id
 
 
-def seen_eval(model, loader, device):
+def seen_eval(model, loader, device, use_amr):
     model.eval()
     correct, total = 0, 0
     y_true, y_pred = [], []
     for data in tqdm(loader):
-        (
-            tokens_tensors,
-            segments_tensors,
-            marked_e1,
-            marked_e2,
-            masks_tensors,
-            relation_emb,
-            labels,
-            graph_data,
-        ) = [t.to(device) for t in data]
+        tokens_tensors = data["tokens_tensors"].to(device)
+        segments_tensors = data["segments_tensors"].to(device)
+        e1_mask = data["e1_mask"].to(device)
+        e2_mask = data["e2_mask"].to(device)
+        masks_tensors = data["masks_tensors"].to(device)
+        labels = data["label_ids"].to(device)
+        dependency_tensors = data["dependency_data"].to(device)
+        amr_tensors = data["amr_data"].to(device)
+
+        graph_data = amr_tensors if use_amr else dependency_tensors
 
         with torch.no_grad():
             outputs_dict = model(
                 input_ids=tokens_tensors,
                 token_type_ids=segments_tensors,
-                e1_mask=marked_e1,
-                e2_mask=marked_e2,
+                e1_mask=e1_mask,
+                e2_mask=e2_mask,
                 attention_mask=masks_tensors,
-                input_relation_emb=relation_emb,
                 labels=labels,
                 graph_data=graph_data,
-                device=device,
             )
             logits = outputs_dict["logits"]
 
@@ -258,7 +256,7 @@ def main(args):
     if args.mode == "train":
         wandb.login()
         wandb.init(
-            project="narrative-flow-staging",
+            project="narrative-flow-simplified",
             entity="flow-graphs-cmu",
             name=f'{checkpoint_file.split("/")[-1]}',
         )
@@ -287,7 +285,7 @@ def main(args):
             model.train()
             y_true, y_pred = [], []
 
-            for data in trainloader:
+            for data in tqdm(trainloader):
                 tokens_tensors = data["tokens_tensors"].to(device)
                 segments_tensors = data["segments_tensors"].to(device)
                 e1_mask = data["e1_mask"].to(device)
@@ -329,10 +327,10 @@ def main(args):
             wandb.log({"loss": running_loss})
 
             if args.domain == "src":
-                pt, rt, f1t = seen_eval(model, trainloader, device=device)
+                pt, rt, f1t = seen_eval(model, trainloader, device=device, use_amr=args.amr)
                 print(f"Train data {f1t} \t Prec {pt} \t Rec {rt}")
                 wandb.log({"train_f1": f1t})
-                pt, rt, f1t = seen_eval(model, devloader, device=device)
+                pt, rt, f1t = seen_eval(model, devloader, device=device, use_amr=args.amr)
                 wandb.log({"dev_f1": f1t})
                 print(f"Eval data {f1t} \t Prec {pt} \t Rec {rt}")
 
@@ -386,7 +384,8 @@ def main(args):
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         best_model = best_model.to(device)
         best_model.eval()
-        pt, rt, test_f1 = seen_eval(best_model, testloader, device=device)
+
+        pt, rt, test_f1 = seen_eval(best_model, testloader, device=device, use_amr=args.amr)
         wandb.log({"test_f1": test_f1})
 
     if args.mode == "eval":
@@ -419,7 +418,7 @@ def main(args):
         model.eval()
 
         if args.domain == "src":
-            pt, rt, f1t = seen_eval(model, testloader, device=device)
+            pt, rt, f1t = seen_eval(model, testloader, device=device, use_amr=args.amr)
             print(f"Train data {f1t} \t Prec {pt} \t Rec {rt}")
         else:
             preds = (
@@ -474,7 +473,7 @@ def main(args):
             model.eval()
 
             if args.domain == "src":
-                pt, rt, f1t = seen_eval(model, testloader, device=device)
+                pt, rt, f1t = seen_eval(model, testloader, device=device, use_amr=args.amr)
                 f1_arr.append(f1t)
                 prec_arr.append(pt)
                 rec_arr.append(rt)
