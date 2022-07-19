@@ -58,6 +58,8 @@ def get_args():
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--patience", type=int, default=5)
 
+    parser.add_argument("--domain", type="str", default="src")
+
     args = parser.parse_args()
     return args
 
