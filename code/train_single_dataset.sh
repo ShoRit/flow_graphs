@@ -2,6 +2,8 @@
 
 set -euxo pipefail
 
+RAYON_RS_NUM_CPUS=5
+
 for (( SEED = 0 ; SEED <= 2; SEED++ ))
 do
     for (( DEP=0 ; DEP <= 1; DEP++ ))
