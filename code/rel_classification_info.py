@@ -58,6 +58,8 @@ def get_args():
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--patience", type=int, default=5)
 
+    parser.add_argument("--domain", type="str", default="src")
+
     args = parser.parse_args()
     return args
 
@@ -197,10 +199,6 @@ def main(args):
         bertconfig.relation_emb_dim = 1024
     elif "bert-base" in args.bert_model:
         bertconfig.relation_emb_dim = 768
-
-    bertconfig.margin = args.gamma
-    bertconfig.alpha = args.alpha
-    bertconfig.dist_func = args.dist_func
 
     bertconfig.node_emb_dim = args.node_emb_dim
     bertconfig.dep_rels = len(deprel_dict)
