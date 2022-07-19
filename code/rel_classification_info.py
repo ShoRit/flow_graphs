@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 import numpy as np
 from sklearn.metrics import (
@@ -51,20 +52,11 @@ def get_args():
     parser.add_argument("--gnn", help="Choice of GNN used", type=str, default="rgcn")
     parser.add_argument("--gnn_depth", help="Depth of GNN used", type=int, default=2)
 
-    parser.add_argument("--n_unseen", help="number of unseen classes", type=int, default=10)
-    parser.add_argument("--gamma", help="margin factor gamma", type=float, default=7.5)
-    parser.add_argument("--alpha", help="balance coefficient alpha", type=float, default=0.5)
-    parser.add_argument(
-        "--dist_func", help="distance computing function", type=str, default="cosine"
-    )
-
     parser.add_argument("--max_seq_len", type=int, default=512)
     parser.add_argument("--lr", type=float, default=5e-6)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--patience", type=int, default=5)
-    parser.add_argument("--num_neighbors", type=int, default=2)
-    parser.add_argument("--omit_rels", type=str, default="")
 
     args = parser.parse_args()
     return args
@@ -161,6 +153,10 @@ def main(args):
     src_file = f"{src_dir}/data_amr.dill"
     tgt_dir = f"/projects/flow_graphs/data/{args.tgt_dataset}"
     tgt_file = f"{tgt_dir}/data_amr.dill"
+
+    if args.dep == "0" and args.amr == "1":
+        print("This combination of arguments does not do anything at the moment!")
+        sys.exit(0)
 
     deprel_dict = load_deprels(enhanced=False)
 
