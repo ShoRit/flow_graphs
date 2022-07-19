@@ -198,10 +198,6 @@ def main(args):
     elif "bert-base" in args.bert_model:
         bertconfig.relation_emb_dim = 768
 
-    bertconfig.margin = args.gamma
-    bertconfig.alpha = args.alpha
-    bertconfig.dist_func = args.dist_func
-
     bertconfig.node_emb_dim = args.node_emb_dim
     bertconfig.dep_rels = len(deprel_dict)
     bertconfig.dep = args.dep
