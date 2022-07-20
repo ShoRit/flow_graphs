@@ -56,7 +56,7 @@ def get_args():
 
     args = parser.parse_args()
 
-    wandb.config = dict(args)
+    wandb.config = vars(args)
 
     return args
 
@@ -208,7 +208,7 @@ def main(args):
     tgt_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.fewshot}-src--dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-seed_{args.seed}-lr_{args.lr}.pt"
     src_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-seed_{args.seed}-lr_{args.lr}.pt"
     if not check_file(src_checkpoint_file):
-        src_checkpoint_file = f"/projects/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-alpha_{args.alpha}-seed_{args.seed}-lr_{args.lr}.pt"
+        raise FileNotFoundError(f"file {src_checkpoint_file} not found!!")
 
     use_graph_data = bool(args.amr) or bool(args.dep)
     src_model = BertRGCNRelationClassifier.from_pretrained(
@@ -243,7 +243,7 @@ def main(args):
             name=f'{tgt_checkpoint_file.split("/")[-1]}',
         )
 
-        wandb.config = dict(args)
+        wandb.config.update(vars(args))
 
         if args.domain == "src":
             (
@@ -290,7 +290,6 @@ def main(args):
                     e2_mask=e2_mask,
                     labels=labels,
                     graph_data=graph_data,
-                    device=device,
                 )
                 loss, logits = output_dict["loss"], output_dict["logits"]
 
@@ -314,10 +313,10 @@ def main(args):
             wandb.log({"loss": running_loss})
 
             if args.domain == "src":
-                pt, rt, f1t = seen_eval(model, trainloader, device=device)
+                pt, rt, f1t = seen_eval(model, trainloader, device=device, use_amr=args.amr)
                 print(f"Train data {f1t} \t Prec {pt} \t Rec {rt}")
                 wandb.log({"train_f1": f1t})
-                pt, rt, f1t = seen_eval(model, devloader, device=device)
+                pt, rt, f1t = seen_eval(model, devloader, device=device, use_amr=args.amr)
                 wandb.log({"dev_f1": f1t})
                 print(f"Eval data {f1t} \t Prec {pt} \t Rec {rt}")
 
@@ -371,7 +370,7 @@ def main(args):
         testloader = DataLoader(testset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         best_model = best_model.to(device)
         best_model.eval()
-        pt, rt, test_f1 = seen_eval(best_model, testloader, device=device)
+        pt, rt, test_f1 = seen_eval(best_model, testloader, device=device, use_amr=args.amr)
         wandb.log({"test_f1": test_f1})
 
     if args.mode == "eval":
@@ -404,7 +403,7 @@ def main(args):
         model.eval()
 
         if args.domain == "src":
-            pt, rt, f1t = seen_eval(model, testloader, device=device)
+            pt, rt, f1t = seen_eval(model, testloader, device=device, use_amr=args.amr)
             print(f"Train data {f1t} \t Prec {pt} \t Rec {rt}")
         else:
             preds = extract_relation_emb(model, testloader, device=device).cpu().numpy()
@@ -455,7 +454,7 @@ def main(args):
             model.eval()
 
             if args.domain == "src":
-                pt, rt, f1t = seen_eval(model, testloader, device=device)
+                pt, rt, f1t = seen_eval(model, testloader, device=device, use_amr=args.amr)
                 f1_arr.append(f1t)
                 prec_arr.append(pt)
                 rec_arr.append(rt)
@@ -482,18 +481,6 @@ def main(args):
             entity="flow-graphs-cmu",
             name=f'{checkpoint_file.split("/")[-1]}',
         )
-        wandb.log({"f1": np.mean(f1_arr)})
-        wandb.log({"std_f1": np.std(f1_arr)})
-        wandb.log({"precision": np.mean(prec_arr)})
-        wandb.log({"recall": np.mean(rec_arr)})
-        wandb.log({"dep": args.dep})
-        wandb.log({"bert": args.bert_model})
-        wandb.log({"src_dataset": args.src_dataset})
-        wandb.log({"tgt_dataset": args.tgt_dataset})
-        wandb.log({"amr": args.amr})
-        wandb.log({"gnn": args.gnn})
-        wandb.log({"gnn_depth": args.gnn_depth})
-        wandb.log({"alpha": args.alpha})
 
 
 if __name__ == "__main__":
