@@ -2,11 +2,7 @@ import argparse
 import sys
 
 import numpy as np
-from sklearn.metrics import (
-    f1_score,
-    precision_score,
-    recall_score,
-)
+from sklearn.metrics import f1_score
 import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -15,6 +11,7 @@ from transformers import (
 )
 
 from dataloader import GraphyRelationsDataset, create_mini_batch
+from evaluation import seen_eval
 from helper import check_file, load_deprels, load_dill
 from modeling.bert import BertRGCNRelationClassifier
 from preprocess import generate_reldesc
@@ -49,13 +46,6 @@ def get_args():
     parser.add_argument("--gnn", help="Choice of GNN used", type=str, default="rgcn")
     parser.add_argument("--gnn_depth", help="Depth of GNN used", type=int, default=2)
 
-    parser.add_argument("--n_unseen", help="number of unseen classes", type=int, default=10)
-    parser.add_argument("--gamma", help="margin factor gamma", type=float, default=7.5)
-    parser.add_argument("--alpha", help="balance coefficient alpha", type=float, default=0.5)
-    parser.add_argument(
-        "--dist_func", help="distance computing function", type=str, default="cosine"
-    )
-
     parser.add_argument("--max_seq_len", type=int, default=512)
     parser.add_argument("--lr", type=float, default=5e-6)
     parser.add_argument("--batch_size", type=int, default=32)
@@ -66,16 +56,7 @@ def get_args():
 
     args = parser.parse_args()
 
-    wandb.config = {
-        "learning_rate": 0.001,
-        "epochs": args.epochs,
-        "batch_size": args.batch_size,
-        "node_emb_dim": args.node_emb_dim,
-        "alpha": args.alpha,
-        "dep": args.dep,
-        "dataset": args.src_dataset,
-        "tgt_dataset": args.tgt_dataset,
-    }
+    wandb.config = dict(args)
 
     return args
 
@@ -121,51 +102,6 @@ def get_known_lbl_features(data, rel2desc_emb, lbl2id):
     return test_y, test_idxmap, labels, test_y_attr, lbl2id
 
 
-def seen_eval(model, loader, device):
-    model.eval()
-    correct, total = 0, 0
-    y_true, y_pred = [], []
-    for data in tqdm(loader):
-        (
-            tokens_tensors,
-            segments_tensors,
-            marked_e1,
-            marked_e2,
-            masks_tensors,
-            relation_emb,
-            labels,
-            graph_data,
-        ) = [t.to(device) for t in data]
-
-        with torch.no_grad():
-            outputs_dict = model(
-                input_ids=tokens_tensors,
-                token_type_ids=segments_tensors,
-                e1_mask=marked_e1,
-                e2_mask=marked_e2,
-                attention_mask=masks_tensors,
-                input_relation_emb=relation_emb,
-                labels=labels,
-                graph_data=graph_data,
-                device=device,
-            )
-            logits = outputs_dict["logits"]
-
-        total += labels.size(0)
-        _, pred = torch.max(logits, 1)
-        correct += (pred == labels).sum().item()
-        y_pred.extend(list(np.array(pred.cpu().detach())))
-        y_true.extend(list(np.array(labels.cpu().detach())))
-
-    f1 = f1_score(y_true, y_pred, average="macro")
-    p1, r1 = precision_score(y_true, y_pred, average="macro"), recall_score(
-        y_true, y_pred, average="macro"
-    )
-    # print(f'val acc: {correct/total}, f1 : {f1_score(y_true,y_pred, average="macro")}')
-
-    return p1, r1, f1
-
-
 def create_bertconfig(bertconfig, args):
 
     deprel_dict = load_deprels(enhanced=False)
@@ -173,10 +109,6 @@ def create_bertconfig(bertconfig, args):
         bertconfig.relation_emb_dim = 1024
     elif "bert-base" in args.bert_model:
         bertconfig.relation_emb_dim = 768
-
-    bertconfig.margin = args.gamma
-    bertconfig.alpha = args.alpha
-    bertconfig.dist_func = args.dist_func
 
     bertconfig.node_emb_dim = args.node_emb_dim
     bertconfig.dep_rels = len(deprel_dict)
@@ -265,8 +197,9 @@ def main(args):
             train_lbl2id,
         ) = get_lbl_features(train_data, rel2desc_emb)
 
-    trainset = GraphyRelationsDataset(train_data, train_lbl2id, args.max_seq_len,
-                                      fewshot=args.fewshot)
+    trainset = GraphyRelationsDataset(
+        train_data, train_lbl2id, args.max_seq_len, fewshot=args.fewshot
+    )
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
@@ -305,7 +238,7 @@ def main(args):
     if args.mode == "train":
         wandb.login()
         wandb.init(
-            project="narrative-flow",
+            project="narrative-flow-simplified",
             entity="flow-graphs-cmu",
             name=f'{tgt_checkpoint_file.split("/")[-1]}',
         )
