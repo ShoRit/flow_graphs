@@ -1,13 +1,12 @@
-from helper import *
 from dataloader import *
 from preprocess import *
 from modeling.zsbert import ZSBert
 from torch.utils.data import DataLoader
 from zsbert_evaluate import extract_relation_emb, evaluate
-from transformers import BertModel, BertConfig, BertPreTrainedModel, BertTokenizer
-from sklearn.metrics import classification_report, f1_score
+from transformers import BertConfig
+from sklearn.metrics import f1_score
 
-from utils import get_device, seed_everything
+from utils import check_file, get_device, load_dill, seed_everything
 
 
 

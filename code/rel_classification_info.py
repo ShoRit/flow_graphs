@@ -16,11 +16,11 @@ from transformers import (
 
 from dataloader import GraphyRelationsDataset, create_mini_batch
 from evaluation import seen_eval
-from helper import check_file, load_deprels, load_dill
+from helper import load_deprels
 from modeling.bert import BertRGCNRelationClassifier
 from modeling.zsbert import ZSBert_RGCN
 from preprocess import generate_reldesc
-from utils import get_device, seed_everything
+from utils import check_file, get_device, load_dill, seed_everything
 import wandb
 from zsbert_evaluate import evaluate, extract_relation_emb
 

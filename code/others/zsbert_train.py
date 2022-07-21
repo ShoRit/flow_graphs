@@ -1,17 +1,15 @@
-from helper import *
 from dataloader import *
 from preprocess import *
 from model import ZSBert
 from torch.utils.data import DataLoader
+
+from utils import check_file, dump_dill, load_dill
 from zsbert_evaluate import extract_relation_emb, evaluate
 from transformers import (
     AutoTokenizer,
-    BertModel,
     BertConfig,
-    BertPreTrainedModel,
-    BertTokenizer,
 )
-from sklearn.metrics import classification_report, f1_score
+from sklearn.metrics import f1_score
 
 
 def seed_everything():

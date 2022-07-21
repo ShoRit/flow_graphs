@@ -10,6 +10,7 @@ from amr.graph_construction import construct_amr_data
 from amr.realignment_heuristics import add_heuristic_alignments
 from helper import *
 from intervals import *
+from utils import dump_dill, dump_pickle, load_dill
 
 
 def load_amr_rel2id(path="/projects/flow_graphs/data/amr_rel2id.json"):
