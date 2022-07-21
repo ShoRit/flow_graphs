@@ -15,14 +15,15 @@ class BertRGCNRelationClassifier(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
         rel_in = config.hidden_size * 3
-
-        self.gnn = DeepNet(config, config.dep_rels)
-        rel_in += config.node_emb_dim * 2
+        self.use_graph_data = use_graph_data
+        if self.use_graph_data:
+            self.gnn = DeepNet(config, config.dep_rels)
+            rel_in += config.node_emb_dim * 2
 
         self.fc_layer = nn.Linear(rel_in, self.relation_emb_dim)
         self.rel_classifier = nn.Linear(self.relation_emb_dim, self.config.num_labels)
         self.config = config
-        self.use_graph_data = use_graph_data
+
         self.init_weights()
 
     def extract_entity(self, sequence_output, e_mask):
