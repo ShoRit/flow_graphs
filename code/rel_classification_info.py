@@ -58,7 +58,7 @@ def get_args():
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--patience", type=int, default=5)
-    
+
     args = parser.parse_args()
     return args
 
@@ -164,6 +164,11 @@ def main(args):
     bertconfig.gnn = args.gnn
 
     use_graph_data = bool(args.amr) or bool(args.dep)
+    case = "plaintext"
+    if args.dep == 1 and args.amr == 0:
+        case = "dep"
+    if args.dep == 1 and args.amr == 1:
+        case = "amr"
 
     model = BertRGCNRelationClassifier.from_pretrained(
         args.bert_model, config=bertconfig, use_graph_data=use_graph_data
@@ -193,6 +198,21 @@ def main(args):
     trainloader = DataLoader(
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
+
+    if args.domain == "src":
+        (
+            dev_y,
+            dev_idxmap,
+            dev_labels,
+            dev_y_attr,
+            dev_lbl2id,
+        ) = get_known_lbl_features(dev_data, None, lbl2id)
+    else:
+        dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_lbl_features(dev_data, None)
+
+    devset = GraphyRelationsDataset(dev_data, dev_lbl2id, args.max_seq_len)
+    devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
+
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -212,20 +232,7 @@ def main(args):
         )
 
         wandb.config.update(vars(args))
-
-        if args.domain == "src":
-            (
-                dev_y,
-                dev_idxmap,
-                dev_labels,
-                dev_y_attr,
-                dev_lbl2id,
-            ) = get_known_lbl_features(dev_data, None, lbl2id)
-        else:
-            dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_lbl_features(dev_data, None)
-
-        devset = GraphyRelationsDataset(dev_data, dev_lbl2id, args.max_seq_len)
-        devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
+        wandb.config.update({"case": case})
         kill_cnt = 0
 
         for epoch in range(args.epochs):

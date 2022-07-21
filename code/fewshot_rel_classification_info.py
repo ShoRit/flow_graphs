@@ -204,6 +204,22 @@ def main(args):
         trainset, batch_size=args.batch_size, collate_fn=create_mini_batch, shuffle=True
     )
 
+    if args.domain == "src":
+        (
+            dev_y,
+            dev_idxmap,
+            dev_labels,
+            dev_y_attr,
+            dev_lbl2id,
+        ) = get_known_lbl_features(dev_data, rel2desc_emb, lbl2id)
+    else:
+        dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_lbl_features(
+            dev_data, rel2desc_emb
+        )
+
+    devset = GraphyRelationsDataset(dev_data, dev_lbl2id, args.max_seq_len)
+    devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
+
     best_p, best_r, best_f1 = 0, 0, 0
     tgt_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.tgt_dataset}-{args.fewshot}-src--dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-seed_{args.seed}-lr_{args.lr}.pt"
     src_checkpoint_file = f"/scratch/sgururaj/flow_graphs/checkpoints/{args.src_dataset}-{args.src_dataset}-src-dep_{args.dep}-amr_{args.amr}-gnn_{args.gnn}-gnn-depth_{args.gnn_depth}-seed_{args.seed}-lr_{args.lr}.pt"
@@ -211,6 +227,13 @@ def main(args):
         raise FileNotFoundError(f"file {src_checkpoint_file} not found!!")
 
     use_graph_data = bool(args.amr) or bool(args.dep)
+
+    case = "plaintext"
+    if args.dep == 1 and args.amr == 0:
+        case = "dep"
+    if args.dep == 1 and args.amr == 1:
+        case = "amr"
+
     src_model = BertRGCNRelationClassifier.from_pretrained(
         args.bert_model, config=src_bertconfig, use_graph_data=use_graph_data
     )
@@ -244,22 +267,8 @@ def main(args):
         )
 
         wandb.config.update(vars(args))
+        wandb.config.update({"case": case})
 
-        if args.domain == "src":
-            (
-                dev_y,
-                dev_idxmap,
-                dev_labels,
-                dev_y_attr,
-                dev_lbl2id,
-            ) = get_known_lbl_features(dev_data, rel2desc_emb, lbl2id)
-        else:
-            dev_y, dev_idxmap, dev_labels, dev_y_attr, dev_lbl2id = get_lbl_features(
-                dev_data, rel2desc_emb
-            )
-
-        devset = GraphyRelationsDataset(dev_data, dev_lbl2id, args.max_seq_len)
-        devloader = DataLoader(devset, batch_size=args.batch_size, collate_fn=create_mini_batch)
         kill_cnt = 0
 
         for epoch in range(args.epochs):
