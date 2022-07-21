@@ -48,8 +48,8 @@ def get_args():
     parser.add_argument("--gpu", help="choice of device", type=str, default="0")
 
     parser.add_argument("--node_emb_dim", help="number of unseen classes", type=int, default=768)
-    parser.add_argument("--dep", help="dependency_parsing", type=str, default="1")
-    parser.add_argument("--amr", help="amr_parsing", type=str, default="0")
+    parser.add_argument("--dep", help="dependency_parsing", type=int, default=1)
+    parser.add_argument("--amr", help="amr_parsing", type=int, default=0)
     parser.add_argument("--gnn", help="Choice of GNN used", type=str, default="rgcn")
     parser.add_argument("--gnn_depth", help="Depth of GNN used", type=int, default=2)
 
@@ -112,7 +112,7 @@ def main(args):
     tgt_dir = f"/projects/flow_graphs/data/{args.tgt_dataset}"
     tgt_file = f"{tgt_dir}/data_amr.dill"
 
-    if args.dep == "0" and args.amr == "1":
+    if args.dep == 0 and args.amr == 1:
         print("This combination of arguments does not do anything at the moment!")
         sys.exit(0)
 
