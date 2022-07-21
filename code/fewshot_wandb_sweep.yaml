@@ -8,7 +8,7 @@ parameters:
   src_dataset:
     values: ["risec"]
   tgt_dataset:
-    values: ["japflow", "chemu", "mscorpus"]
+    values: ["japflow", "mscorpus"]
   amr:
     values: [0, 1]
   dep:
