@@ -1,29 +1,14 @@
 from helper import *
 from dataloader import *
 from preprocess import *
-from model import ZSBert
+from modeling.zsbert import ZSBert
 from torch.utils.data import DataLoader
 from zsbert_evaluate import extract_relation_emb, evaluate
-from transformers import (
-    BertModel,
-    BertConfig,
-    BertPreTrainedModel,
-    BertTokenizer,
-    AutoTokenizer,
-)
+from transformers import BertModel, BertConfig, BertPreTrainedModel, BertTokenizer
 from sklearn.metrics import classification_report, f1_score
 
+from utils import get_device, seed_everything
 
-def seed_everything():
-    SEED = args.seed
-    random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    return device
 
 
 def get_args():
@@ -81,7 +66,8 @@ def get_lbl_features(data, rel2desc_emb):
 
 
 def main(args):
-    device = seed_everything()
+    seed_everything(args.seed)
+    device = get_device()
     tokenizer = BertTokenizerFast.from_pretrained(args.bert_model)
     src_dir = f"../data/{args.src_dataset}"
     src_file = f"{src_dir}/data.dill"
