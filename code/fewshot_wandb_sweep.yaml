@@ -2,7 +2,7 @@ program: fewshot_rel_classification_info.py
 method: grid
 parameters:
   seed:
-    values: [0]
+    values: [1,2]
   fewshot:
     values: [0.01, 0.05, 0.1, 0.2, 0.5]
   src_dataset:
