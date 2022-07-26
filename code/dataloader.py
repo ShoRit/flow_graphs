@@ -2,7 +2,7 @@ import random
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader as geo_DataLoader
 
 
@@ -122,3 +122,24 @@ class GraphyRelationsDataset(Dataset):
             "dep_data": instance["dep_data"],
             "amr_data": instance["dep_data"],
         }
+
+
+def get_data_loaders(
+    train_data, dev_data, test_data, lbl2id, graph_data_source, max_seq_len, batch_size
+):
+    train_set = GraphyRelationsDataset(train_data, lbl2id, max_seq_len)
+    train_loader = DataLoader(
+        train_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=True
+    )
+
+    dev_set = GraphyRelationsDataset(dev_data, lbl2id, max_seq_len)
+    dev_loader = DataLoader(
+        dev_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=False
+    )
+
+    test_set = GraphyRelationsDataset(test_data, lbl2id, max_seq_len)
+    test_loader = DataLoader(
+        test_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=Fasle
+    )
+
+    return train_loader, dev_loader, test_loader

@@ -12,7 +12,7 @@ from transformers import (
 
 from dataloader import GraphyRelationsDataset, create_mini_batch
 from evaluation import seen_eval
-from helper import load_deprels
+from dataloading_utils import load_deprels
 from modeling.bert import BertRGCNRelationClassifier
 from preprocess import generate_reldesc
 from utils import check_file, get_device, load_dill, seed_everything
