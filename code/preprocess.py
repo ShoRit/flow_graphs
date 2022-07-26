@@ -8,14 +8,10 @@ from amr.amr_utils import is_valid_amr
 from amr.annotate_datasets import format_sentence
 from amr.graph_construction import construct_amr_data
 from amr.realignment_heuristics import add_heuristic_alignments
+from dataloading_utils import load_amr_rel2id, load_deprels
 from helper import *
 from intervals import *
 from utils import dump_dill, dump_pickle, load_dill
-
-
-def load_amr_rel2id(path="/projects/flow_graphs/data/amr_rel2id.json"):
-    with open(path) as f:
-        return json.load(f)
 
 
 def generate_reldesc(device=None):

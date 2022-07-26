@@ -16,7 +16,7 @@ from transformers import (
 
 from dataloader import GraphyRelationsDataset, create_mini_batch
 from evaluation import seen_eval
-from helper import load_deprels
+from dataloading_utils import load_deprels
 from modeling.bert import BertRGCNRelationClassifier
 from modeling.zsbert import ZSBert_RGCN
 from preprocess import generate_reldesc
