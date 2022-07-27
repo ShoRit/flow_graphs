@@ -221,7 +221,7 @@ def train_model_in_domain(
     best_model.to(device)
     best_model.eval()
     pt, rt, test_f1 = seen_eval(best_model, test_loader, device=device)
-    wandb.log({"test_f1": test_f1})
+    wandb.log({"test_f1": test_f1, "test_precision": pt, "test_recall": rt})
     wandb.run.finish()
 
 
