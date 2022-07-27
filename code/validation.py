@@ -1,4 +1,4 @@
-GRAPH_DATA_SOURCES = ("plaintext", "dep", "amr")
+GRAPH_DATA_SOURCES = (None, "dep", "amr")
 
 # map from graph sources to keys in the preprocessed data for the graph-formatted data
 GRAPH_DATA_KEYS = {"plaintext": None, "dep": "dep_data", "amr": "amr_data"}

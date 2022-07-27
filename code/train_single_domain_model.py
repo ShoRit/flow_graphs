@@ -25,7 +25,7 @@ def train_model_in_domain(
     node_emb_dim: int,
     gnn: str,
     gnn_depth: int,
-    graph_data_source: str,
+    graph_data_source: Optional[str],
     lr: float,
     seed: int,
     batch_size: int,
@@ -39,13 +39,14 @@ def train_model_in_domain(
     conf_blob: dict,
     **kwargs,
 ):
+
     seed_everything(seed)
     validate_graph_data_source(graph_data_source)
+    case = "plaintext" if graph_data_source is None else graph_data_source
+
     checkpoint_file = os.path.join(
         checkpoint_folder,
-        f"indomain-{dataset_name}"
-        f"-{graph_data_source}-{gnn}-depth_"
-        f"{gnn_depth}-seed_{seed}-lr_{lr}",
+        f"indomain-{dataset_name}-{case}-{gnn}-depth_{gnn_depth}-seed_{seed}-lr_{lr}",
     )
 
     #######################################
@@ -58,6 +59,7 @@ def train_model_in_domain(
         name=f'{checkpoint_file.split("/")[-1]}',
     )
     wandb.config.update(conf_blob)
+    wandb.config.case = case
 
     #######################################
     # LOAD DATA                           #
@@ -109,10 +111,13 @@ def train_model_in_domain(
     bertconfig.gnn = gnn
 
     use_graph_data = graph_data_source is not None
+    wandb.config.use_graph_data = use_graph_data
 
     model = BertRGCNRelationClassifier.from_pretrained(
         bert_model, config=bertconfig, use_graph_data=use_graph_data
     )
+
+    wandb.config.model_class = type(model)
     model.to(device)
     print("Done loading model.")
 
@@ -141,6 +146,10 @@ def train_model_in_domain(
             graph_data = data["graph_data"].to(device)
             dependency_tensors = data["dependency_data"].to(device)
             amr_tensors = data["amr_data"].to(device)
+
+            print(graph_data is amr_tensors)
+            wandb.config.graph_data_is_amr = graph_data is amr_tensors
+            wandb.config.graph_data_is_dep = graph_data is dependency_tensors
 
             optimizer.zero_grad()
 
