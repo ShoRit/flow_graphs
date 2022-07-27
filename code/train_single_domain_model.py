@@ -147,7 +147,7 @@ def train_model_in_domain(
             dependency_tensors = data["dependency_data"].to(device)
             amr_tensors = data["amr_data"].to(device)
 
-            print(graph_data is amr_tensors)
+            print(f"Graph data is amr data: {graph_data is amr_tensors}")
             wandb.config.graph_data_is_amr = graph_data is amr_tensors
             wandb.config.graph_data_is_dep = graph_data is dependency_tensors
 
