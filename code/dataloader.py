@@ -28,8 +28,11 @@ def create_mini_batch(samples):
     masks_tensors = masks_tensors.masked_fill(tokens_tensors != 0, 1)
 
     graph_data = [s["graph_data"] for s in samples]
-    graph_loader = geo_DataLoader(graph_data, batch_size=len(graph_data))
-    graph_tensors = [e for e in graph_loader][0]
+    if any([graph is None for graph in graph_data]):
+        graph_tensors = None
+    else:
+        graph_loader = geo_DataLoader(graph_data, batch_size=len(graph_data))
+        graph_tensors = [e for e in graph_loader][0]
 
     dependency_data = [s["dep_data"] for s in samples]
     dependency_loader = geo_DataLoader(dependency_data, batch_size=len(dependency_data))

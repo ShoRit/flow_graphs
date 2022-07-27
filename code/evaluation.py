@@ -15,7 +15,12 @@ def seen_eval(model, loader, device):
         e2_mask = data["e2_mask"].to(device)
         masks_tensors = data["masks_tensors"].to(device)
         labels = data["label_ids"].to(device)
-        graph_data = data["graph_data"].to(device)
+
+        if data["graph_data"] is not None:
+            graph_data = data["graph_data"].to(device)
+        else:
+            graph_data = None
+            
         dependency_tensors = data["dependency_data"].to(device)
         amr_tensors = data["amr_data"].to(device)
 

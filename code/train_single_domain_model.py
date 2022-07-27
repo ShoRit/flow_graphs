@@ -64,6 +64,7 @@ def train_model_in_domain(
     #######################################
     # LOAD DATA                           #
     #######################################
+    print("Setting up dataloaders...")
     train_data = dataset["train"]["rels"]
     dev_data = dataset["dev"]["rels"]
     test_data = dataset["test"]["rels"]
@@ -89,6 +90,9 @@ def train_model_in_domain(
         max_seq_len,
         batch_size,
     )
+
+    # this speeds up VSCode debugging a _lot_, and the variable is no longer needed.
+    del dataset
 
     print("Data is successfully loaded")
 
@@ -143,13 +147,24 @@ def train_model_in_domain(
             masks_tensors = data["masks_tensors"].to(device)
             labels = data["label_ids"].to(device)
 
-            graph_data = data["graph_data"].to(device)
-            dependency_tensors = data["dependency_data"].to(device)
-            amr_tensors = data["amr_data"].to(device)
+            if data["graph_data"] is not None:
+                graph_data = data["graph_data"].to(device)
+            else:
+                graph_data = None
 
-            print(f"Graph data is amr data: {graph_data is amr_tensors}")
-            wandb.config.graph_data_is_amr = graph_data is amr_tensors
-            wandb.config.graph_data_is_dep = graph_data is dependency_tensors
+            # we don't currently need to load these, until we start using both AMRs and dependencies.
+            # we do want to check that the correct graph data is being used, but can be ommitted
+            # with python -o
+            if __debug__:
+                dependency_tensors = data["dependency_data"].to(device)
+                amr_tensors = data["amr_data"].to(device)
+
+                if case == "amr":
+                    assert (graph_data.x == amr_tensors.x).all()
+                elif case == "dep":
+                    assert (graph_data.x == dependency_tensors.x).all()
+                else:
+                    assert graph_data is None
 
             optimizer.zero_grad()
 
@@ -175,7 +190,7 @@ def train_model_in_domain(
             wandb.log({"batch_loss": loss.item()})
         wandb.log({"loss": running_loss})
 
-        print("============== EVALUATION ON DEV DATA ==============")
+        print("============== EVALUATION ==============")
 
         p_train, r_train, f1_train = seen_eval(model, train_loader, device=device)
         print(f"Train data F1: {f1_train} \t Precision: {p_train} \t Recall: {r_train}")
@@ -218,7 +233,9 @@ def train_model_indomain_wrapper(
 ):
     device = get_device(gpu)
     configuration = model_configurations[experiment_config]
+    print("Loading data from disk...")
     loaded_dataset = load_dataset(configuration["base_path"], dataset)
+    print("Done loading data.")
 
     train_model_in_domain(
         dataset_name=dataset,
