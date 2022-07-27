@@ -41,6 +41,23 @@ def train_model_in_domain(
 ):
     seed_everything(seed)
     validate_graph_data_source(graph_data_source)
+    checkpoint_file = os.path.join(
+        checkpoint_folder,
+        f"indomain-{dataset_name}"
+        f"-{graph_data_source}-{gnn}-depth_"
+        f"{gnn_depth}-seed_{seed}-lr_{lr}",
+    )
+
+    #######################################
+    # wandb init                          #
+    #######################################
+    wandb.login()
+    wandb.init(
+        project=wandb_project,
+        entity=wandb_entity,
+        name=f'{checkpoint_file.split("/")[-1]}',
+    )
+    wandb.config.update(conf_blob)
 
     #######################################
     # LOAD DATA                           #
@@ -91,8 +108,10 @@ def train_model_in_domain(
     bertconfig.gnn_depth = gnn_depth
     bertconfig.gnn = gnn
 
+    use_graph_data = graph_data_source is not None
+
     model = BertRGCNRelationClassifier.from_pretrained(
-        bert_model, config=bertconfig, use_graph_data=graph_data_source
+        bert_model, config=bertconfig, use_graph_data=use_graph_data
     )
     model.to(device)
     print("Done loading model.")
@@ -105,31 +124,11 @@ def train_model_in_domain(
     best_p, best_r, best_f1 = 0, 0, 0
     kill_cnt = 0
 
-    # TODO: get rid of this in refactor
-    use_amr = graph_data_source == "amr"
-
-    checkpoint_file = os.path.join(
-        checkpoint_folder,
-        f"indomain-{dataset_name}"
-        f"-{graph_data_source}-{gnn}-depth_"
-        f"{gnn_depth}-seed_{seed}-lr_{lr}",
-    )
-
-    wandb.login()
-    wandb.init(
-        project=wandb_project,
-        entity=wandb_entity,
-        name=f'{checkpoint_file.split("/")[-1]}',
-    )
-
-    wandb.config.update(conf_blob)
-
     for epoch in range(epochs):
         print(f"============== TRAINING ON EPOCH {epoch} ==============")
         running_loss, correct, total = 0.0, 0, 0
 
         model.train()
-        y_true, y_pred = [], []
 
         for data in tqdm(train_loader):
             tokens_tensors = data["tokens_tensors"].to(device)
@@ -138,11 +137,10 @@ def train_model_in_domain(
             e2_mask = data["e2_mask"].to(device)
             masks_tensors = data["masks_tensors"].to(device)
             labels = data["label_ids"].to(device)
+
+            graph_data = data["graph_data"].to(device)
             dependency_tensors = data["dependency_data"].to(device)
             amr_tensors = data["amr_data"].to(device)
-
-            # TODO: get rid of these in the refactor
-            graph_data = amr_tensors if graph_data_source == "amr" else dependency_tensors
 
             optimizer.zero_grad()
 
@@ -154,6 +152,7 @@ def train_model_in_domain(
                 attention_mask=masks_tensors,
                 labels=labels,
                 graph_data=graph_data,
+                # can optionally pass in dependency/amr tensors if we want to use both.
             )
             loss, logits = output_dict["loss"], output_dict["logits"]
 
@@ -165,20 +164,15 @@ def train_model_in_domain(
             running_loss += loss.item()
 
             wandb.log({"batch_loss": loss.item()})
-            y_pred.extend(list(np.array(pred.cpu().detach())))
-            y_true.extend(list(np.array(labels.cpu().detach())))
-
-        # this evaluation method is copied over, but it is _not_ correct!!
-        print(f'train acc: {correct / total}, f1 : {f1_score(y_true, y_pred, average="macro")}')
         wandb.log({"loss": running_loss})
 
         print("============== EVALUATION ON DEV DATA ==============")
 
-        p_train, r_train, f1_train = seen_eval(model, train_loader, device=device, use_amr=use_amr)
+        p_train, r_train, f1_train = seen_eval(model, train_loader, device=device)
         print(f"Train data F1: {f1_train} \t Precision: {p_train} \t Recall: {r_train}")
         wandb.log({"train_f1": f1_train})
 
-        p_dev, r_dev, f1_dev = seen_eval(model, dev_loader, device=device, use_amr=use_amr)
+        p_dev, r_dev, f1_dev = seen_eval(model, dev_loader, device=device)
         wandb.log({"dev_f1": f1_dev})
         print(f"Eval data F1: {f1_dev} \t Precision: {p_dev} \t Recall: {r_dev}")
 
@@ -202,8 +196,9 @@ def train_model_in_domain(
     print("============== EVALUATION ON TEST DATA ==============")
     best_model.to(device)
     best_model.eval()
-    pt, rt, test_f1 = seen_eval(best_model, test_loader, device=device, use_amr=use_amr)
+    pt, rt, test_f1 = seen_eval(best_model, test_loader, device=device)
     wandb.log({"test_f1": test_f1})
+    wandb.run.finish()
 
 
 def train_model_indomain_wrapper(

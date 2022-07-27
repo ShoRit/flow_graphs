@@ -1,10 +1,10 @@
 import numpy as np
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import precision_recall_fscore_support
 import torch
 from tqdm.auto import tqdm
 
 
-def seen_eval(model, loader, device, use_amr):
+def seen_eval(model, loader, device):
     model.eval()
     correct, total = 0, 0
     y_true, y_pred = [], []
@@ -15,10 +15,9 @@ def seen_eval(model, loader, device, use_amr):
         e2_mask = data["e2_mask"].to(device)
         masks_tensors = data["masks_tensors"].to(device)
         labels = data["label_ids"].to(device)
+        graph_data = data["graph_data"].to(device)
         dependency_tensors = data["dependency_data"].to(device)
         amr_tensors = data["amr_data"].to(device)
-
-        graph_data = amr_tensors if use_amr else dependency_tensors
 
         with torch.no_grad():
             outputs_dict = model(
@@ -38,8 +37,6 @@ def seen_eval(model, loader, device, use_amr):
         y_pred.extend(list(np.array(pred.cpu().detach())))
         y_true.extend(list(np.array(labels.cpu().detach())))
 
-    f1 = f1_score(y_true, y_pred, average="macro")
-    p1 = precision_score(y_true, y_pred, average="macro")
-    r1 = recall_score(y_true, y_pred, average="macro")
+    p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="macro")
 
-    return p1, r1, f1
+    return p, r, f1

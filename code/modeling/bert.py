@@ -43,6 +43,7 @@ class BertRGCNRelationClassifier(BertPreTrainedModel):
         inputs_embeds=None,
         labels=None,
         graph_data=None,
+        **kwargs
     ):
         output_dict = {}
 

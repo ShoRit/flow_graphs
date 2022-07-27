@@ -5,6 +5,8 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader as geo_DataLoader
 
+from validation import GRAPH_DATA_KEYS
+
 
 def create_mini_batch(samples):
 
@@ -25,6 +27,10 @@ def create_mini_batch(samples):
     masks_tensors = torch.zeros(tokens_tensors.shape, dtype=torch.long)
     masks_tensors = masks_tensors.masked_fill(tokens_tensors != 0, 1)
 
+    graph_data = [s["graph_data"] for s in samples]
+    graph_loader = geo_DataLoader(graph_data, batch_size=len(graph_data))
+    graph_tensors = [e for e in graph_loader][0]
+
     dependency_data = [s["dep_data"] for s in samples]
     dependency_loader = geo_DataLoader(dependency_data, batch_size=len(dependency_data))
     dependency_tensors = [e for e in dependency_loader][0]
@@ -40,6 +46,7 @@ def create_mini_batch(samples):
         "e2_mask": e2_mask,
         "masks_tensors": masks_tensors,
         "label_ids": label_ids,
+        "graph_data": graph_tensors,
         "dependency_data": dependency_tensors,
         "amr_data": amr_tensors,
     }
@@ -77,7 +84,14 @@ class ZSBertRelDataset(Dataset):
 
 
 class GraphyRelationsDataset(Dataset):
-    def __init__(self, dataset, rel2id, max_seq_len, fewshot=1.0, skip_hashing=False):
+    def __init__(
+        self,
+        dataset: dict,
+        rel2id: dict,
+        graph_data_source: str,
+        max_seq_len: int,
+        fewshot: float = 1.0,
+    ):
         if fewshot == 1.0:
             self.dataset = tuple(dataset)
         else:
@@ -90,11 +104,7 @@ class GraphyRelationsDataset(Dataset):
 
         self.rel2id = rel2id
         self.max_seq_len = max_seq_len
-
-        if not skip_hashing:
-            self.dataset_hash = None  # hash(self.dataset)
-        else:
-            self.dataset_hash = None
+        self.graph_data_key = GRAPH_DATA_KEYS[graph_data_source]
 
     def __len__(self):
         return len(self.dataset)
@@ -113,33 +123,39 @@ class GraphyRelationsDataset(Dataset):
         )
         segments = torch.tensor([0] * len(tokens))
 
+        if self.graph_data_key is not None:
+            graph_data = instance[self.graph_data_key]
+        else:
+            graph_data = None
+
         return {
             "tokens": tokens,
             "segments": segments,
             "e1_mask": e1_mask,
             "e2_mask": e2_mask,
             "label": torch.tensor(self.rel2id[instance["label"]]),
+            "graph_data": graph_data,
             "dep_data": instance["dep_data"],
-            "amr_data": instance["dep_data"],
+            "amr_data": instance["amr_data"],
         }
 
 
 def get_data_loaders(
     train_data, dev_data, test_data, lbl2id, graph_data_source, max_seq_len, batch_size
 ):
-    train_set = GraphyRelationsDataset(train_data, lbl2id, max_seq_len)
+    train_set = GraphyRelationsDataset(train_data, lbl2id, graph_data_source, max_seq_len)
     train_loader = DataLoader(
         train_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=True
     )
 
-    dev_set = GraphyRelationsDataset(dev_data, lbl2id, max_seq_len)
+    dev_set = GraphyRelationsDataset(dev_data, lbl2id, graph_data_source, max_seq_len)
     dev_loader = DataLoader(
         dev_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=False
     )
 
-    test_set = GraphyRelationsDataset(test_data, lbl2id, max_seq_len)
+    test_set = GraphyRelationsDataset(test_data, lbl2id, graph_data_source, max_seq_len)
     test_loader = DataLoader(
-        test_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=Fasle
+        test_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=False
     )
 
     return train_loader, dev_loader, test_loader
