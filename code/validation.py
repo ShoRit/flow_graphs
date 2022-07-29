@@ -1,9 +1,19 @@
+import torch
+
 GRAPH_DATA_SOURCES = (None, "dep", "amr")
 
 # map from graph sources to keys in the preprocessed data for the graph-formatted data
 GRAPH_DATA_KEYS = {None: None, "dep": "dep_data", "amr": "amr_data"}
 
 assert set(GRAPH_DATA_KEYS.keys()) == set(GRAPH_DATA_SOURCES)
+
+
+def graph_data_not_equal(data1: torch.Tensor, data2: torch.Tensor):
+    try:
+        is_equal = (data1 == data2).all()
+        return is_equal
+    except:
+        return False
 
 
 def validate_graph_data_source(graph_data_source):

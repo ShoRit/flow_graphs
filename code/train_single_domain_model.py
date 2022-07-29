@@ -15,7 +15,7 @@ from evaluation import seen_eval
 from experiment_configs import model_configurations
 from modeling.bert import BertRGCNRelationClassifier
 from utils import seed_everything, get_device
-from validation import validate_graph_data_source
+from validation import graph_data_not_equal, validate_graph_data_source
 
 
 def train_model_in_domain(
@@ -158,7 +158,7 @@ def train_model_in_domain(
             if __debug__:
                 dependency_tensors = data["dependency_data"].to(device)
                 amr_tensors = data["amr_data"].to(device)
-
+                assert graph_data_not_equal(dependency_tensors, amr_tensors)
                 if case == "amr":
                     assert (graph_data.x == amr_tensors.x).all()
                 elif case == "dep":
