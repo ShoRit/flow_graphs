@@ -18,6 +18,8 @@ class BertRGCNRelationClassiferABC(BertPreTrainedModel, ABC):
         if self.use_graph_data:
             self.gnn = DeepNet(config, config.dep_rels)
 
+        self.loss_fn = nn.CrossEntropyLoss()
+
     def extract_entity(self, sequence_output, e_mask):
         extended_e_mask = e_mask.unsqueeze(1)
         extended_e_mask = torch.bmm(extended_e_mask.float(), sequence_output).squeeze(1)
@@ -86,6 +88,13 @@ class BertRGCNRelationClassiferABC(BertPreTrainedModel, ABC):
 
         return e1_node_emb, e1_node_emb
 
+    def get_relation_embeddings_and_logits(self, pooled_output):
+        pooled_output = torch.tanh(pooled_output)
+        pooled_output = self.fc_layer(pooled_output)
+        relation_embeddings = torch.tanh(pooled_output)
+        logits = self.rel_classifier(relation_embeddings)
+        return relation_embeddings, logits
+
 
 class BertRGCNRelationClassifierConcat(BertRGCNRelationClassiferABC):
     def __init__(self, config, use_graph_data):
@@ -138,19 +147,76 @@ class BertRGCNRelationClassifierConcat(BertRGCNRelationClassiferABC):
 
         pooled_output = torch.cat(rel_output, dim=-1)
 
-        pooled_output = torch.tanh(pooled_output)
-        pooled_output = self.fc_layer(pooled_output)
-        relation_embeddings = torch.tanh(pooled_output)
+        relation_embeddings, logits = self.get_relation_embeddings_and_logits(pooled_output)
 
         output_dict["hidden_states"] = sequence_output
         output_dict["relation_embeddings"] = relation_embeddings
+        output_dict["logits"] = logits
 
         if labels is not None:
-            logits = self.rel_classifier(relation_embeddings)
-            output_dict["logits"] = logits
+            loss = self.loss_fn(logits.view(-1, self.num_labels), labels.view(-1))
+            output_dict["loss"] = loss
 
-            ce_loss = nn.CrossEntropyLoss()
-            loss = ce_loss(logits.view(-1, self.num_labels), labels.view(-1))
+        return output_dict
+
+
+class BertRGCNRelationClassifierResidual(BertRGCNRelationClassiferABC):
+    def __init__(self, config, use_graph_data):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+        self.relation_emb_dim = config.relation_emb_dim
+
+        rel_in = config.hidden_size * 3
+        self.use_graph_data = use_graph_data
+
+        self.fc_layer = nn.Linear(rel_in, self.relation_emb_dim)
+        self.rel_classifier = nn.Linear(self.relation_emb_dim, self.config.num_labels)
+        self.config = config
+
+        self.init_weights()
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        e1_mask=None,
+        e2_mask=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        graph_data=None,
+        **kwargs
+    ):
+        output_dict = {}
+
+        e1_rep, e2_rep, context, sequence_output = self.embed_context_and_entities(
+            input_ids,
+            attention_mask,
+            token_type_ids,
+            position_ids,
+            e1_mask,
+            e2_mask,
+            head_mask,
+            inputs_embeds,
+        )
+
+        if self.use_graph_data:
+            e1_node, e2_node = self.embed_entity_nodes(graph_data, sequence_output)
+            e1_rep = e1_rep + e1_node
+            e2_rep = e2_rep + e2_node
+
+        pooled_output = torch.cat([context, e1_rep, e2_rep], dim=-1)
+
+        relation_embeddings, logits = self.get_relation_embeddings_and_logits(pooled_output)
+
+        output_dict["hidden_states"] = sequence_output
+        output_dict["relation_embeddings"] = relation_embeddings
+        output_dict["logits"] = logits
+
+        if labels is not None:
+            loss = self.loss_fn(logits.view(-1, self.num_labels), labels.view(-1))
             output_dict["loss"] = loss
 
         return output_dict
