@@ -1,0 +1,5 @@
+outs:
+- md5: 715a39e4978e0064f4df9f9667cf76d7.dir
+  size: 5508138408
+  nfiles: 13
+  path: mscorpus

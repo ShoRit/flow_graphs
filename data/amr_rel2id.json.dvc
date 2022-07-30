@@ -1,0 +1,4 @@
+outs:
+- md5: bbc329c9ba83a2233af0e837877059a9
+  size: 2362
+  path: amr_rel2id.json
