@@ -11,7 +11,7 @@ from dataloader import get_data_loaders
 from dataloading_utils import load_deprels, load_dataset
 from evaluation import seen_eval
 from experiment_configs import model_configurations
-from modeling.bert import BertRGCNRelationClassifier
+from modeling.bert import CONNECTION_TYPE_TO_CLASS
 from utils import seed_everything, get_device
 from validation import graph_data_not_equal, validate_graph_data_source
 
@@ -24,6 +24,7 @@ def train_model_in_domain(
     gnn: str,
     gnn_depth: int,
     graph_data_source: Optional[str],
+    graph_connection_type: str,
     lr: float,
     seed: int,
     batch_size: int,
@@ -118,7 +119,9 @@ def train_model_in_domain(
     use_graph_data = graph_data_source is not None
     wandb.config.use_graph_data = use_graph_data
 
-    model = BertRGCNRelationClassifier.from_pretrained(
+    model_class = CONNECTION_TYPE_TO_CLASS[graph_connection_type]
+
+    model = model_class.from_pretrained(
         bert_model, config=bertconfig, use_graph_data=use_graph_data
     )
 

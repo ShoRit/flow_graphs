@@ -222,5 +222,7 @@ class BertRGCNRelationClassifierResidual(BertRGCNRelationClassifierABC):
         return output_dict
 
 
-# shim in place while we configure the refactor
-BertRGCNRelationClassifier = BertRGCNRelationClassifierResidual
+CONNECTION_TYPE_TO_CLASS = {
+    "concat": BertRGCNRelationClassifierConcat,
+    "residual": BertRGCNRelationClassifierResidual,
+}

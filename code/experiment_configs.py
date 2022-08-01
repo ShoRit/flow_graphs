@@ -16,15 +16,27 @@ _base_config = {
     "wandb_project": "narrative-flow-simplified",
 }
 
-baseline_config = dict(**_base_config, **{"graph_data_source": None})
+baseline_config = dict(
+    **_base_config, **{"graph_data_source": None, "graph_connection_type": "concat"}
+)
 
-dep_config = dict(**_base_config, **{"graph_data_source": "dep"})
+dep_config = dict(**_base_config, **{"graph_data_source": "dep", "graph_connection_type": "concat"})
 
-amr_config = dict(**_base_config, **{"graph_data_source": "amr"})
+amr_config = dict(**_base_config, **{"graph_data_source": "amr", "graph_connection_type": "concat"})
+
+dep_residual = dict(
+    **_base_config, **{"graph_data_source": "dep", "graph_connection_type": "residual"}
+)
+
+amr_residual = dict(
+    **_base_config, **{"graph_data_source": "amr", "graph_connection_type": "residual"}
+)
 
 
 model_configurations = {
     "baseline": baseline_config,
     "dep": dep_config,
     "amr": amr_config,
+    "dep_residual": dep_residual,
+    "amr_residual": amr_residual,
 }
