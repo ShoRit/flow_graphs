@@ -12,7 +12,7 @@ def graph_data_not_equal(data1: torch.Tensor, data2: torch.Tensor):
     try:
         is_equal = (data1 == data2).all()
         return is_equal
-    except:
+    except RuntimeError as e:
         return False
 
 
