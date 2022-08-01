@@ -2,8 +2,6 @@ import os
 from typing import Dict, List, Optional
 
 import fire
-import numpy as np
-from sklearn.metrics import f1_score, precision_recall_fscore_support
 import torch
 from tqdm.auto import tqdm
 from transformers import BertConfig

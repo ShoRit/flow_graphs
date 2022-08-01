@@ -223,4 +223,4 @@ class BertRGCNRelationClassifierResidual(BertRGCNRelationClassifierABC):
 
 
 # shim in place while we configure the refactor
-BertRGCNRelationClassifier = BertRGCNRelationClassifierConcat
+BertRGCNRelationClassifier = BertRGCNRelationClassifierResidual
