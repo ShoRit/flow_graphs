@@ -16,6 +16,9 @@ def seed_everything(seed=0):
 
 
 def get_device(gpu_index: int = 0):
+    if gpu_index is None:
+        return "cpu"
+
     if torch.cuda.is_available():
         return f"cuda:{gpu_index}"
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():

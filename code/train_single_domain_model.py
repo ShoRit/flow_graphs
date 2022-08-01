@@ -34,6 +34,7 @@ def train_model_in_domain(
     max_seq_len: int,
     device: str,
     checkpoint_folder: str,
+    base_path: str,
     wandb_entity: str,
     wandb_project: str,
     conf_blob: dict,
@@ -69,7 +70,9 @@ def train_model_in_domain(
     dev_data = dataset["dev"]["rels"]
     test_data = dataset["test"]["rels"]
 
-    deprel_dict = load_deprels(enhanced=False)
+    deprel_dict = load_deprels(
+        path=os.path.join(base_path, "data", "enh_dep_rel.txt"), enhanced=False
+    )
 
     print(
         "train size: {}, dev size {}, test size: {}".format(
@@ -135,7 +138,7 @@ def train_model_in_domain(
 
     for epoch in range(epochs):
         print(f"============== TRAINING ON EPOCH {epoch} ==============")
-        running_loss, correct, total = 0.0, 0, 0
+        running_loss = 0.0
 
         model.train()
 
@@ -158,7 +161,7 @@ def train_model_in_domain(
             if __debug__:
                 dependency_tensors = data["dependency_data"].to(device)
                 amr_tensors = data["amr_data"].to(device)
-                assert graph_data_not_equal(dependency_tensors, amr_tensors)
+                assert graph_data_not_equal(dependency_tensors.x, amr_tensors.x)
                 if case == "amr":
                     assert (graph_data.x == amr_tensors.x).all()
                 elif case == "dep":
@@ -180,9 +183,6 @@ def train_model_in_domain(
             )
             loss, logits = output_dict["loss"], output_dict["logits"]
 
-            total += labels.size(0)
-            _, pred = torch.max(logits, 1)
-            correct += (pred == labels).sum().item()
             loss.backward()
             optimizer.step()
             running_loss += loss.item()

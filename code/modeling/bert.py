@@ -8,7 +8,7 @@ from transformers import BertModel, BertPreTrainedModel
 from modeling.graph_components import DeepNet
 
 
-class BertRGCNRelationClassiferABC(BertPreTrainedModel, ABC):
+class BertRGCNRelationClassifierABC(BertPreTrainedModel, ABC):
     def __init__(self, config, use_graph_data):
         super().__init__(config)
         self.bert = BertModel(config)
@@ -76,17 +76,17 @@ class BertRGCNRelationClassiferABC(BertPreTrainedModel, ABC):
 
         graph_embs = self.gnn(graph_embs, graph_data.edge_index, graph_data.edge_type)
 
-        e1_node_emb, e1_node_emb = [], []
+        e1_node_emb, e2_node_emb = [], []
         for idx in range(0, sequence_output.shape[0]):
             mask = torch.where(batch == idx, 1, 0)
             m1, m2 = mask * n1_mask, mask * n2_mask
             e1_node_emb.append(torch.mm(m1.unsqueeze(dim=0).float(), graph_embs))
-            e1_node_emb.append(torch.mm(m2.unsqueeze(dim=0).float(), graph_embs))
+            e2_node_emb.append(torch.mm(m2.unsqueeze(dim=0).float(), graph_embs))
 
         e1_node_emb = torch.cat(e1_node_emb, dim=0)
-        e1_node_emb = torch.cat(e1_node_emb, dim=0)
+        e2_node_emb = torch.cat(e2_node_emb, dim=0)
 
-        return e1_node_emb, e1_node_emb
+        return e1_node_emb, e2_node_emb
 
     def get_relation_embeddings_and_logits(self, pooled_output):
         pooled_output = torch.tanh(pooled_output)
@@ -96,9 +96,9 @@ class BertRGCNRelationClassiferABC(BertPreTrainedModel, ABC):
         return relation_embeddings, logits
 
 
-class BertRGCNRelationClassifierConcat(BertRGCNRelationClassiferABC):
+class BertRGCNRelationClassifierConcat(BertRGCNRelationClassifierABC):
     def __init__(self, config, use_graph_data):
-        super().__init__(config)
+        super().__init__(config, use_graph_data)
         self.num_labels = config.num_labels
         self.relation_emb_dim = config.relation_emb_dim
 
@@ -160,9 +160,9 @@ class BertRGCNRelationClassifierConcat(BertRGCNRelationClassiferABC):
         return output_dict
 
 
-class BertRGCNRelationClassifierResidual(BertRGCNRelationClassiferABC):
+class BertRGCNRelationClassifierResidual(BertRGCNRelationClassifierABC):
     def __init__(self, config, use_graph_data):
-        super().__init__(config)
+        super().__init__(config, use_graph_data)
         self.num_labels = config.num_labels
         self.relation_emb_dim = config.relation_emb_dim
 

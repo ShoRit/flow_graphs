@@ -11,9 +11,9 @@ assert set(GRAPH_DATA_KEYS.keys()) == set(GRAPH_DATA_SOURCES)
 def graph_data_not_equal(data1: torch.Tensor, data2: torch.Tensor):
     try:
         is_equal = (data1 == data2).all()
-        return is_equal
+        return not is_equal
     except RuntimeError as e:
-        return False
+        return True
 
 
 def validate_graph_data_source(graph_data_source):
