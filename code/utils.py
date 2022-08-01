@@ -16,7 +16,12 @@ def seed_everything(seed=0):
 
 
 def get_device(gpu_index: int = 0):
-    return f"cuda:{gpu_index}" if torch.cuda.is_available() else "cpu"
+    if torch.cuda.is_available():
+        return f"cuda:{gpu_index}"
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    else:
+        return "cpu"
 
 
 def load_pickle(filename):
