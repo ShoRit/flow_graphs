@@ -104,8 +104,7 @@ def train_model_in_domain(
     #######################################
 
     print("Loading model...")
-    train_label = [data["label"] for data in train_data]
-    bertconfig = BertConfig.from_pretrained(bert_model, num_labels=len(set(train_label)))
+    bertconfig = BertConfig.from_pretrained(bert_model, num_labels=len(labels))
 
     if "bert-large" in bert_model:
         bertconfig.relation_emb_dim = 1024
