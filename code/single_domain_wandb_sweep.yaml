@@ -1,0 +1,16 @@
+program: fewshot_rel_classification_info.py
+method: grid
+parameters:
+  seed:
+    values: [0,1,2]
+  dataset:
+    values: ["risec", "japflow", "mscorpus"]
+  experiment_config:
+    values: ["baseline", "dep_residual", "amr_residual"]
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+  - "--gpu"
+  - "0"
