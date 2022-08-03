@@ -28,6 +28,7 @@ def train_model_in_domain(
     lr: float,
     seed: int,
     batch_size: int,
+    grad_accumulation_steps: int,
     epochs: int,
     patience: int,
     max_seq_len: int,
@@ -143,7 +144,7 @@ def train_model_in_domain(
 
         model.train()
 
-        for data in tqdm(train_loader):
+        for i, data in enumerate(tqdm(train_loader)):
             tokens_tensors = data["tokens_tensors"].to(device)
             segments_tensors = data["segments_tensors"].to(device)
             e1_mask = data["e1_mask"].to(device)
@@ -185,8 +186,13 @@ def train_model_in_domain(
             loss, logits = output_dict["loss"], output_dict["logits"]
 
             loss.backward()
-            optimizer.step()
             running_loss += loss.item()
+            if (i + 1) % grad_accumulation_steps == 0:
+                optimizer.step()
+
+        # final gradient step if we hadn't handled it already
+        if (i + 1) % grad_accumulation_steps != 0:
+            optimizer.step()
 
             wandb.log({"batch_loss": loss.item()})
         wandb.log({"loss": running_loss})

@@ -10,6 +10,7 @@ _base_config = {
     "max_seq_len": 512,
     "lr": 2e-5,
     "batch_size": 16,
+    "grad_accumulation_steps": 1,
     "epochs": 30,
     "patience": 5,
     "wandb_entity": "flow-graphs-cmu",
