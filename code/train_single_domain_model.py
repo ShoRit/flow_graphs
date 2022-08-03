@@ -47,7 +47,7 @@ def train_model_in_domain(
 
     checkpoint_file = os.path.join(
         checkpoint_folder,
-        f"indomain-{dataset_name}-{case}-{gnn}-depth_{gnn_depth}-seed_{seed}-lr_{lr}",
+        f"indomain-{dataset_name}-{case}-{gnn}-depth_{gnn_depth}-seed_{seed}-lr_{lr}.pt",
     )
 
     #######################################
