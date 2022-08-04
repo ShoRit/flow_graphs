@@ -133,4 +133,3 @@ dmypy.json
 .idea/
 wandb/
 
-checkpoints/
