@@ -16,9 +16,12 @@ from utils import seed_everything, get_device
 from validation import graph_data_not_equal, validate_graph_data_source
 
 
-def train_model_in_domain(
-    dataset_name: str,
-    dataset: Dict,
+def train_transfer_model(
+    src_dataset_name: str,
+    src_dataset: Dict,
+    tgt_dataset_name: str,
+    tgt_dataset: Dict,
+    fewshot: float,
     bert_model: str,
     node_emb_dim: int,
     gnn: str,
@@ -40,15 +43,21 @@ def train_model_in_domain(
     conf_blob: dict,
     **kwargs,
 ):
-
     seed_everything(seed)
     validate_graph_data_source(graph_data_source)
     # TODO: this should also incorporate the graph_connection_type
     case = "plaintext" if graph_data_source is None else graph_data_source
 
-    checkpoint_file = os.path.join(
+    src_checkpoint_file = os.path.join(
         checkpoint_folder,
-        f"indomain-{dataset_name}-{case}-{gnn}-depth_{gnn_depth}-seed_{seed}-lr_{lr}.pt",
+        f"indomain-{src_dataset_name}-{case}-{gnn}-depth_{gnn_depth}-seed_{seed}-lr_{lr}.pt",
+    )
+
+    tgt_checkpoint_file = os.path.join(
+        checkpoint_folder,
+        f"transfer-{src_dataset_name}-{tgt_dataset_name}-{case}-{graph_connection_type}-{gnn}-depth"
+        f"_{gnn_depth}-seed"
+        f"_{seed}-lr_{lr}.pt",
     )
 
     #######################################
@@ -58,7 +67,7 @@ def train_model_in_domain(
     wandb.init(
         project=wandb_project,
         entity=wandb_entity,
-        name=f'{checkpoint_file.split("/")[-1]}',
+        name=f'{tgt_checkpoint_file.split("/")[-1]}',
     )
     wandb.config.update(conf_blob)
     wandb.config.case = case
@@ -67,20 +76,21 @@ def train_model_in_domain(
     # LOAD DATA                           #
     #######################################
     print("Setting up dataloaders...")
-    train_data = dataset["train"]["rels"]
-    dev_data = dataset["dev"]["rels"]
-    test_data = dataset["test"]["rels"]
+    train_data = tgt_dataset["train"]["rels"]
+    dev_data = tgt_dataset["dev"]["rels"]
+    test_data = tgt_dataset["test"]["rels"]
 
     deprel_dict = load_deprels(
         path=os.path.join(base_path, "data", "enh_dep_rel.txt"), enhanced=False
     )
 
     print(
-        "train size: {}, dev size {}, test size: {}".format(
-            len(train_data), len(dev_data), len(test_data)
+        "train size: {}/{}, dev size {}, test size: {}".format(
+            int(len(train_data) * fewshot), len(train_data), len(dev_data), len(test_data)
         )
     )
 
+    src_labels = set([data["label"] for data in src_dataset["train"]["rels"]])
     train_labels = [data["label"] for data in train_data]
     labels = sorted(list(set(train_labels)))
     lbl2id = {lbl: idx for idx, lbl in enumerate(labels)}
@@ -93,10 +103,8 @@ def train_model_in_domain(
         graph_data_source,
         max_seq_len,
         batch_size,
+        fewshot=fewshot,
     )
-
-    # this speeds up VSCode debugging a _lot_, and the variable is no longer needed.
-    del dataset
 
     print("Data is successfully loaded")
 
@@ -104,27 +112,43 @@ def train_model_in_domain(
     # LOAD MODELS                         #
     #######################################
 
-    print("Loading model...")
-    bertconfig = BertConfig.from_pretrained(bert_model, num_labels=len(labels))
+    print("Loading models...")
+    src_bertconfig = BertConfig.from_pretrained(bert_model, num_labels=len(src_labels))
+    tgt_bertconfig = BertConfig.from_pretrained(bert_model, num_labels=len(labels))
 
-    if "bert-large" in bert_model:
-        bertconfig.relation_emb_dim = 1024
-    elif "bert-base" in bert_model:
-        bertconfig.relation_emb_dim = 768
+    for bertconfig in [src_bertconfig, tgt_bertconfig]:
+        if "bert-large" in bert_model:
+            bertconfig.relation_emb_dim = 1024
+        elif "bert-base" in bert_model:
+            bertconfig.relation_emb_dim = 768
 
-    bertconfig.node_emb_dim = node_emb_dim
-    bertconfig.dep_rels = len(deprel_dict)
-    bertconfig.gnn_depth = gnn_depth
-    bertconfig.gnn = gnn
+        bertconfig.node_emb_dim = node_emb_dim
+        bertconfig.dep_rels = len(deprel_dict)
+        bertconfig.gnn_depth = gnn_depth
+        bertconfig.gnn = gnn
 
     use_graph_data = graph_data_source is not None
     wandb.config.use_graph_data = use_graph_data
 
     model_class = CONNECTION_TYPE_TO_CLASS[graph_connection_type]
 
-    model = model_class.from_pretrained(
-        bert_model, config=bertconfig, use_graph_data=use_graph_data
+    src_model = model_class.from_pretrained(
+        bert_model, config=src_bertconfig, use_graph_data=use_graph_data
     )
+
+    src_model.load_state_dict(torch.load(src_checkpoint_file, map_location="cpu"))
+    model = model_class.from_pretrained(
+        bert_model, config=tgt_bertconfig, use_graph_data=use_graph_data
+    )
+
+    src_model_dict = src_model.state_dict()
+    model_dict = model.state_dict()
+
+    for k, v in src_model_dict.items():
+        if k in ["rel_classifier.weight", "rel_classifier.bias"]:
+            continue
+        model_dict[k] = v
+    model.load_state_dict(model_dict)
 
     wandb.config.model_class = type(model)
     model.to(device)
@@ -232,8 +256,10 @@ def train_model_in_domain(
     wandb.run.finish()
 
 
-def train_model_indomain_wrapper(
-    dataset: str,
+def train_transfer_model_wrapper(
+    src_dataset: str,
+    tgt_dataset: str,
+    fewshot: float,
     seed: int,
     experiment_config: str,
     gpu: Optional[int] = 0,
@@ -241,18 +267,18 @@ def train_model_indomain_wrapper(
     device = get_device(gpu)
     configuration = model_configurations[experiment_config]
     print("Loading data from disk...")
-    loaded_dataset = load_dataset(configuration["base_path"], dataset)
+    src_dataset_loaded = load_dataset(configuration["base_path"], src_dataset)
+    tgt_dataset_loaded = load_dataset(configuration["base_path"], tgt_dataset)
     print("Done loading data.")
 
-    train_model_in_domain(
-        dataset_name=dataset,
-        dataset=loaded_dataset,
+    train_transfer_model(
+        src_dataset_name=src_dataset,
+        src_dataset=src_dataset_loaded,
+        tgt_dataset_name=tgt_dataset,
+        tgt_dataset=tgt_dataset_loaded,
+        fewshot=fewshot,
         device=device,
         seed=seed,
         conf_blob=configuration,
         **configuration,
     )
-
-
-if __name__ == "__main__":
-    fire.Fire(train_model_indomain_wrapper)
