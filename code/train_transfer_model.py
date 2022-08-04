@@ -236,17 +236,17 @@ def train_transfer_model(
 
             best_p, best_r, best_f1 = p_dev, r_dev, f1_dev
             best_model = model
-            torch.save(best_model.state_dict(), checkpoint_file)
+            torch.save(best_model.state_dict(), tgt_checkpoint_file)
         else:
             kill_cnt += 1
             if kill_cnt >= patience:
-                torch.save(best_model.state_dict(), checkpoint_file)
+                torch.save(best_model.state_dict(), tgt_checkpoint_file)
                 break
 
         wandb.log({"running_best_f1": best_f1})
         print(f"[best val] precision: {best_p:.4f}, recall: {best_r:.4f}, f1 score: {best_f1:.4f}")
     wandb.log({"best_f1": best_f1, "best_precision": best_p, "best_recall": best_r})
-    torch.save(best_model.state_dict(), checkpoint_file)
+    torch.save(best_model.state_dict(), tgt_checkpoint_file)
 
     print("============== EVALUATION ON TEST DATA ==============")
     best_model.to(device)
