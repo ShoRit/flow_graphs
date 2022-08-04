@@ -1,19 +1,19 @@
 import os
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import fire
 import torch
 from tqdm.auto import tqdm
 from transformers import BertConfig
-import wandb
 
 from dataloader import get_data_loaders
-from dataloading_utils import load_deprels, load_dataset
+from dataloading_utils import load_dataset, load_deprels
 from evaluation import seen_eval
 from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
-from utils import seed_everything, get_device
+from utils import get_device, seed_everything
 from validation import graph_data_not_equal, validate_graph_data_source
+import wandb
 
 
 def train_transfer_model(
@@ -282,3 +282,7 @@ def train_transfer_model_wrapper(
         conf_blob=configuration,
         **configuration,
     )
+
+
+if __name__ == "__main__":
+    fire.Fire(train_transfer_model_wrapper)
