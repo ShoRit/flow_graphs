@@ -1,0 +1,4 @@
+outs:
+- md5: 915aa33616b8bf9cf044ab54e298ff75
+  size: 629163101
+  path: indomain-risec-amr-rgcn-depth_2-seed_1-lr_2e-05.pt
