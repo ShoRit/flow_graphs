@@ -165,9 +165,9 @@ def train_model_in_domain(
                 dependency_tensors = data["dependency_data"].to(device)
                 amr_tensors = data["amr_data"].to(device)
                 assert graph_data_not_equal(dependency_tensors.x, amr_tensors.x)
-                if case == "amr":
+                if case.startswith("amr"):
                     assert (graph_data.x == amr_tensors.x).all()
-                elif case == "dep":
+                elif case.startswith("dep"):
                     assert (graph_data.x == dependency_tensors.x).all()
                 else:
                     assert graph_data is None
