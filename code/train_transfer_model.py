@@ -45,8 +45,9 @@ def train_transfer_model(
 ):
     seed_everything(seed)
     validate_graph_data_source(graph_data_source)
-    # TODO: this should also incorporate the graph_connection_type
-    case = "plaintext" if graph_data_source is None else graph_data_source
+    case = (
+        "plaintext" if graph_data_source is None else f"{graph_data_source}_{graph_connection_type}"
+    )
 
     src_checkpoint_file = os.path.join(
         checkpoint_folder,

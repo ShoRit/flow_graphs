@@ -6,7 +6,7 @@ parameters:
   dataset:
     values: ["risec", "japflow", "mscorpus"]
   experiment_config:
-    values: ["baseline", "dep_residual", "amr_residual"]
+    values: ["dep_residual", "amr_residual"]
 command:
   - ${env}
   - python

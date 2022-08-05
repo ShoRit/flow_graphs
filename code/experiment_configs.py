@@ -6,7 +6,7 @@ _base_config = {
     "bert_model": "bert-base-uncased",
     "node_emb_dim": 768,
     "gnn": "rgcn",
-    "gnn_depth": 2,
+    "gnn_depth": 4,
     "max_seq_len": 512,
     "lr": 2e-5,
     "batch_size": 16,
