@@ -1,0 +1,4 @@
+outs:
+- md5: e1ba056194580a5cbe44f604d26991bf
+  size: 813196817
+  path: indomain-risec-dep_residual-rgcn-depth_4-seed_1-lr_2e-05.pt
