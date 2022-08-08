@@ -56,7 +56,9 @@ def train_transfer_model(
 
     tgt_checkpoint_file = os.path.join(
         checkpoint_folder,
-        f"transfer-{src_dataset_name}-{tgt_dataset_name}-{case}-{graph_connection_type}-{gnn}-depth"
+        f"transfer-{src_dataset_name}-{tgt_dataset_name}-fewshot_{fewshot}-{case}"
+        f"-{graph_connection_type}"
+        f"-{gnn}-depth"
         f"_{gnn_depth}-seed"
         f"_{seed}-lr_{lr}.pt",
     )
