@@ -10,7 +10,7 @@ parameters:
   tgt_dataset:
     values: ["japflow", "mscorpus"]
   experiment_config:
-    values: ["amr_residual", "dep_residual"]
+    values: ["baseline", "amr_residual", "dep_residual"]
 command:
   - ${env}
   - python
