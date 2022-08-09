@@ -109,6 +109,12 @@ def train_transfer_model(
         fewshot=fewshot,
     )
 
+    wandb.config.train_dataset_instance_hash = train_loader.dataset.sampled_index_hash
+    wandb.config.train_dataset_instances = train_loader.dataset.sampled_indices
+
+    print(f"Sampled instance hash: {train_loader.dataset.sampled_index_hash}")
+    print(f"Sampled instance indices: {train_loader.dataset.sampled_indices}")
+
     print("Data is successfully loaded")
 
     #######################################
