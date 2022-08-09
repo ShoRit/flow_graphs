@@ -98,12 +98,14 @@ class GraphyRelationsDataset(Dataset):
         if fewshot == 1.0:
             self.dataset = tuple(dataset)
         else:
-            self.dataset = tuple(
-                random.sample(
-                    dataset,
-                    int(fewshot * len(dataset)),
-                )
+            sampled_instances = random.sample(
+                list(enumerate(dataset)),
+                int(fewshot * len(dataset)),
             )
+
+            sampled_indices, self.dataset = zip(*sampled_instances)
+            self.sampled_indices = tuple(sampled_indices)
+            self.sampled_index_hash = hash(sampled_indices)
 
         self.rel2id = rel2id
         self.max_seq_len = max_seq_len
