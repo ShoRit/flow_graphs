@@ -1,0 +1,4 @@
+outs:
+- md5: faee63f7318b672476e0159922bacd01
+  size: 813196817
+  path: transfer-risec-mscorpus-fewshot_0.05-amr_residual-residual-rgcn-depth_4-seed_0-lr_2e-05.pt
