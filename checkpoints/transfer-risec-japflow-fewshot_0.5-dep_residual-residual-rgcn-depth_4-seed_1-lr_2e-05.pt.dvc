@@ -1,0 +1,4 @@
+outs:
+- md5: 005a5d89aa529fbcd1998edb1e8a6b84
+  size: 813202961
+  path: transfer-risec-japflow-fewshot_0.5-dep_residual-residual-rgcn-depth_4-seed_1-lr_2e-05.pt
