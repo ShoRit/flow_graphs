@@ -6,7 +6,7 @@ parameters:
   dataset:
     values: ["japflow", "mscorpus"]
   experiment_config:
-    values: ["plaintext"]
+    values: ["baseline"]
 command:
   - ${env}
   - python
