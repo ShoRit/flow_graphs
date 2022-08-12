@@ -4,9 +4,9 @@ parameters:
   seed:
     values: [0,1,2]
   dataset:
-    values: ["risec", "japflow", "mscorpus"]
+    values: ["japflow", "mscorpus"]
   experiment_config:
-    values: ["dep_residual", "amr_residual"]
+    values: ["plaintext"]
 command:
   - ${env}
   - python
