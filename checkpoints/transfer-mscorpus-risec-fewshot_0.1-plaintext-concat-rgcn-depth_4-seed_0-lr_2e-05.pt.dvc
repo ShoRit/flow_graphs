@@ -1,0 +1,4 @@
+outs:
+- md5: bedf4738e094387addcc75f6d1d1d9b1
+  size: 445129449
+  path: transfer-mscorpus-risec-fewshot_0.1-plaintext-concat-rgcn-depth_4-seed_0-lr_2e-05.pt
