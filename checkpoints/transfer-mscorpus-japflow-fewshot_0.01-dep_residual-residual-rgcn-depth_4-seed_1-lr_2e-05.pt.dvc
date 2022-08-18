@@ -1,0 +1,4 @@
+outs:
+- md5: 544df4d9e81c0899b02fe2bd07509327
+  size: 813202961
+  path: transfer-mscorpus-japflow-fewshot_0.01-dep_residual-residual-rgcn-depth_4-seed_1-lr_2e-05.pt

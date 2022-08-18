@@ -1,4 +1,4 @@
 outs:
-- md5: 1861d24e5fa38c8bae1b746979ddea99
-  size: 813202961
+- md5: 5812a2c051e4b3ec2c5634f1e086516c
+  size: 811597824
   path: indomain-japflow-amr_residual-rgcn-depth_4-seed_1-lr_2e-05.pt

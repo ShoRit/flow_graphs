@@ -1,0 +1,4 @@
+outs:
+- md5: 50366202ef377972f03e2ae6c241e7b6
+  size: 445129449
+  path: transfer-japflow-risec-fewshot_0.01-plaintext-concat-rgcn-depth_4-seed_0-lr_2e-05.pt

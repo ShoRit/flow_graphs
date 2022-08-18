@@ -1,0 +1,4 @@
+outs:
+- md5: e0b2b92ebfb7e99100b89a4f231e602d
+  size: 445129449
+  path: transfer-japflow-mscorpus-fewshot_0.2-plaintext-concat-rgcn-depth_4-seed_1-lr_2e-05.pt
