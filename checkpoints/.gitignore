@@ -118,3 +118,6 @@
 /indomain-mscorpus-plaintext-rgcn-depth_4-seed_0-lr_2e-05.pt
 /indomain-mscorpus-plaintext-rgcn-depth_4-seed_1-lr_2e-05.pt
 /indomain-mscorpus-plaintext-rgcn-depth_4-seed_2-lr_2e-05.pt
+/indomain-japflow-plaintext-rgcn-depth_4-seed_0-lr_2e-05.pt
+/indomain-japflow-plaintext-rgcn-depth_4-seed_1-lr_2e-05.pt
+/indomain-japflow-plaintext-rgcn-depth_4-seed_2-lr_2e-05.pt
