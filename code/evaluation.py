@@ -4,10 +4,9 @@ import torch
 from tqdm.auto import tqdm
 
 
-def seen_eval(model, loader, device):
-    model.eval()
-    correct, total = 0, 0
+def get_labels_and_model_predictions(model, loader, device):
     y_true, y_pred = [], []
+
     for data in tqdm(loader):
         tokens_tensors = data["tokens_tensors"].to(device)
         segments_tensors = data["segments_tensors"].to(device)
@@ -20,7 +19,7 @@ def seen_eval(model, loader, device):
             graph_data = data["graph_data"].to(device)
         else:
             graph_data = None
-            
+
         dependency_tensors = data["dependency_data"].to(device)
         amr_tensors = data["amr_data"].to(device)
 
@@ -36,12 +35,15 @@ def seen_eval(model, loader, device):
             )
             logits = outputs_dict["logits"]
 
-        total += labels.size(0)
         _, pred = torch.max(logits, 1)
-        correct += (pred == labels).sum().item()
         y_pred.extend(list(np.array(pred.cpu().detach())))
         y_true.extend(list(np.array(labels.cpu().detach())))
 
-    p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="macro")
+    return y_true, y_pred
 
+
+def seen_eval(model, loader, device):
+    model.eval()
+    y_true, y_pred = get_labels_and_model_predictions(model, loader, device)
+    p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="macro")
     return p, r, f1
