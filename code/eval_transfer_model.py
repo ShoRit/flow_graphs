@@ -19,12 +19,10 @@ from validation import graph_data_not_equal, validate_graph_data_source
 import wandb
 
 
-def load_model_from_config(configuration, fewshot, seed, n_labels, device):
+def load_model_from_config(configuration, case, fewshot, seed, n_labels, device):
     model_checkpoint_file = os.path.join(
         configuration["checkpoint_path"],
-        get_transfer_checkpoint_filename(
-            **configuration, case=get_case(**configuration), fewshot=fewshot, seed=seed
-        ),
+        get_transfer_checkpoint_filename(**configuration, case=case, fewshot=fewshot, seed=seed),
     )
     check_file(model_checkpoint_file)
 
@@ -127,12 +125,9 @@ def eval_transfer_model_wrapper(
     labels = set([data["label"] for data in tgt_dataset_loaded["train"]["rels"]])
 
     print("Loading model checkpoint")
+    case = get_case(**configuration)
 
-    model = load_model_from_config(
-        configuration,
-        fewshot=fewshot,
-        seed=seed,
-    )
+    model = load_model_from_config(configuration, fewshot=fewshot, seed=seed, case=case)
 
     dev_df, test_df = evaluate_transfer_model(
         model=model,
@@ -142,7 +137,12 @@ def eval_transfer_model_wrapper(
         **configuration,
     )
 
-    dev_df.
+    dev_df.to_parquet(
+        f"transfer_results_dev_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.pq"
+    )
+    dev_df.to_parquet(
+        f"transfer_results_test_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.pq"
+    )
 
 
 if __name__ == "__main__":
