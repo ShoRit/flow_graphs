@@ -12,6 +12,7 @@ from dataloading_utils import load_deprels, load_dataset
 from evaluation import seen_eval
 from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
+from modeling.metadata_utils import get_case, get_indomain_checkpoint_filename
 from utils import seed_everything, get_device
 from validation import graph_data_not_equal, validate_graph_data_source
 
@@ -43,13 +44,10 @@ def train_model_in_domain(
 
     seed_everything(seed)
     validate_graph_data_source(graph_data_source)
-    case = (
-        "plaintext" if graph_data_source is None else f"{graph_data_source}_{graph_connection_type}"
-    )
+    case = get_case(**conf_blob)
 
     checkpoint_file = os.path.join(
-        checkpoint_folder,
-        f"indomain-{dataset_name}-{case}-{gnn}-depth_{gnn_depth}-seed_{seed}-lr_{lr}.pt",
+        checkpoint_folder, get_indomain_checkpoint_filename(**conf_blob, case=case)
     )
 
     #######################################

@@ -11,6 +11,11 @@ from dataloading_utils import load_dataset, load_deprels
 from evaluation import seen_eval
 from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
+from modeling.metadata_utils import (
+    get_case,
+    get_indomain_checkpoint_filename,
+    get_transfer_checkpoint_filename,
+)
 from utils import get_device, seed_everything
 from validation import graph_data_not_equal, validate_graph_data_source
 import wandb
@@ -45,22 +50,15 @@ def train_transfer_model(
 ):
     seed_everything(seed)
     validate_graph_data_source(graph_data_source)
-    case = (
-        "plaintext" if graph_data_source is None else f"{graph_data_source}_{graph_connection_type}"
-    )
+    case = get_case(**conf_blob)
 
     src_checkpoint_file = os.path.join(
         checkpoint_folder,
-        f"indomain-{src_dataset_name}-{case}-{gnn}-depth_{gnn_depth}-seed_{seed}-lr_{lr}.pt",
+        get_indomain_checkpoint_filename(**conf_blob, case=case, dataset_name=src_dataset_name),
     )
 
     tgt_checkpoint_file = os.path.join(
-        checkpoint_folder,
-        f"transfer-{src_dataset_name}-{tgt_dataset_name}-fewshot_{fewshot}-{case}"
-        f"-{graph_connection_type}"
-        f"-{gnn}-depth"
-        f"_{gnn_depth}-seed"
-        f"_{seed}-lr_{lr}.pt",
+        checkpoint_folder, get_transfer_checkpoint_filename(**conf_blob, case=case)
     )
 
     #######################################
