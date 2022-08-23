@@ -55,6 +55,7 @@ def load_model_from_config(
     )
 
     model.load_state_dict(torch.load(model_checkpoint_file, map_location=device))
+    model.to(device)
 
     return model
 
