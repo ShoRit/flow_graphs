@@ -21,7 +21,7 @@ import wandb
 
 def load_model_from_config(configuration, case, fewshot, seed, n_labels, device):
     model_checkpoint_file = os.path.join(
-        configuration["checkpoint_path"],
+        configuration["checkpoint_folder"],
         get_transfer_checkpoint_filename(**configuration, case=case, fewshot=fewshot, seed=seed),
     )
     check_file(model_checkpoint_file)
