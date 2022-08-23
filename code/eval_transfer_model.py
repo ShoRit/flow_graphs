@@ -1,11 +1,10 @@
 import os
-from typing import Dict, Optional
+from typing import Optional
 
 import fire
 import pandas as pd
 from sklearn.metrics import precision_recall_fscore_support
 import torch
-from tqdm.auto import tqdm
 from transformers import BertConfig
 
 from dataloader import get_data_loaders
@@ -13,16 +12,23 @@ from dataloading_utils import load_dataset, load_deprels
 from evaluation import get_labels_and_model_predictions
 from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
-from modeling.metadata_utils import get_transfer_checkpoint_filename, get_case
-from utils import get_device, seed_everything, check_file
-from validation import graph_data_not_equal, validate_graph_data_source
-import wandb
+from modeling.metadata_utils import get_case, get_transfer_checkpoint_filename
+from utils import check_file, get_device
 
 
-def load_model_from_config(configuration, case, fewshot, seed, n_labels, device):
+def load_model_from_config(
+    configuration, src_dataset, tgt_dataset, case, fewshot, seed, n_labels, device
+):
     model_checkpoint_file = os.path.join(
         configuration["checkpoint_folder"],
-        get_transfer_checkpoint_filename(**configuration, case=case, fewshot=fewshot, seed=seed),
+        get_transfer_checkpoint_filename(
+            **configuration,
+            src_dataset_name=src_dataset,
+            tgt_dataset_name=tgt_dataset,
+            case=case,
+            fewshot=fewshot,
+            seed=seed,
+        ),
     )
     check_file(model_checkpoint_file)
 
@@ -128,7 +134,14 @@ def eval_transfer_model_wrapper(
     case = get_case(**configuration)
 
     model = load_model_from_config(
-        configuration, fewshot=fewshot, seed=seed, case=case, device=device, n_labels=len(labels)
+        configuration,
+        src_dataset=src_dataset,
+        tgt_dataset=tgt_dataset,
+        fewshot=fewshot,
+        seed=seed,
+        case=case,
+        device=device,
+        n_labels=len(labels),
     )
 
     dev_df, test_df = evaluate_transfer_model(
