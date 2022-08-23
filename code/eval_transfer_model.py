@@ -127,7 +127,9 @@ def eval_transfer_model_wrapper(
     print("Loading model checkpoint")
     case = get_case(**configuration)
 
-    model = load_model_from_config(configuration, fewshot=fewshot, seed=seed, case=case)
+    model = load_model_from_config(
+        configuration, fewshot=fewshot, seed=seed, case=case, device=device, n_labels=len(labels)
+    )
 
     dev_df, test_df = evaluate_transfer_model(
         model=model,
