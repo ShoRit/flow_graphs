@@ -62,17 +62,18 @@ def load_model_from_config(
 def evaluate_transfer_model(
     model, src_data, tgt_data, device, graph_data_source, max_seq_len, batch_size, **kwargs
 ):
-    train_data = src_data["train"]["rels"]
+    src_train_data = src_data["train"]["rels"]
+    tgt_train_data = tgt_data["train"]["rels"]
     dev_data = tgt_data["dev"]["rels"]
     test_data = tgt_data["test"]["rels"]
 
-    train_labels = [data["label"] for data in train_data]
+    train_labels = [data["label"] for data in tgt_train_data]
     labels = sorted(list(set(train_labels)))
     lbl2id = {lbl: idx for idx, lbl in enumerate(labels)}
     id2lbl = {idx: lbl for (lbl, idx) in lbl2id.items()}
 
     _, dev_loader, test_loader = get_data_loaders(
-        train_data,
+        tgt_train_data,
         dev_data,
         test_data,
         lbl2id,
