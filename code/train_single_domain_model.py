@@ -47,7 +47,10 @@ def train_model_in_domain(
     case = get_case(**conf_blob)
 
     checkpoint_file = os.path.join(
-        checkpoint_folder, get_indomain_checkpoint_filename(**conf_blob, case=case)
+        checkpoint_folder,
+        get_indomain_checkpoint_filename(
+            **conf_blob, case=case, dataset_name=dataset_name, seed=seed
+        ),
     )
 
     #######################################
