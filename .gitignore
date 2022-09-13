@@ -110,11 +110,6 @@ ENV/
 env.bak/
 venv.bak/
 
-# Datas
-checkpoints/
-models/
-data/
-
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -137,3 +132,4 @@ dmypy.json
 .vscode/
 .idea/
 wandb/
+

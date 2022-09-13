@@ -1,0 +1,4 @@
+outs:
+- md5: 1ad445f9f4bf15779984fff5d46eda06
+  size: 445129449
+  path: indomain-mscorpus-plaintext-rgcn-depth_4-seed_1-lr_2e-05.pt

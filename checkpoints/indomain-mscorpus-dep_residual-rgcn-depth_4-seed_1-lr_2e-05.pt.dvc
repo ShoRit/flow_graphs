@@ -1,0 +1,4 @@
+outs:
+- md5: ece4225aa13734c73d09a809be43fd36
+  size: 813196817
+  path: indomain-mscorpus-dep_residual-rgcn-depth_4-seed_1-lr_2e-05.pt

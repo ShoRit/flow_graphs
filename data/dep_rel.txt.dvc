@@ -1,0 +1,4 @@
+outs:
+- md5: 980bccb5598fe2223a9b2c679be019e5
+  size: 1829
+  path: dep_rel.txt

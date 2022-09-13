@@ -1,7 +1,4 @@
-from collections import defaultdict as ddict
-
 from nltk.stem import WordNetLemmatizer
-import numpy as np
 import spacy
 import stanza
 from torch.nn.utils.rnn import pad_sequence
@@ -11,13 +8,10 @@ from amr.amr_utils import is_valid_amr
 from amr.annotate_datasets import format_sentence
 from amr.graph_construction import construct_amr_data
 from amr.realignment_heuristics import add_heuristic_alignments
+from dataloading_utils import load_amr_rel2id, load_deprels
 from helper import *
 from intervals import *
-
-
-def load_amr_rel2id(path="/projects/flow_graphs/data/amr_rel2id.json"):
-    with open(path) as f:
-        return json.load(f)
+from utils import dump_dill, dump_pickle, load_dill
 
 
 def generate_reldesc(device=None):
@@ -1345,7 +1339,7 @@ def get_amrs(sent, bert_model, text_tokenizer='scispacy'):
 
 
 def add_parses(data_dir, splits, text_tokenizer="scispacy"):
-    from transformer_srl import dataset_readers, models, predictors
+    from transformer_srl import predictors
 
     stanza_nlp = stanza.Pipeline(lang="en")
     data = ddict(lambda: ddict(list))
@@ -1929,45 +1923,6 @@ def create_datafield(
     print(f"Missing arg2: {arg2_missing}")
     print(f"Both missing: {both_missing}")
     return data
-
-
-def create_mini_batch(samples):
-    from torch_geometric.loader import DataLoader
-
-    tokens_tensors = [s[0] for s in samples]
-    segments_tensors = [s[1] for s in samples]
-    marked_e1 = [s[2] for s in samples]
-    marked_e2 = [s[3] for s in samples]
-    relation_emb = [s[4] for s in samples]
-
-    if samples[0][5] is not None:
-        label_ids = torch.stack([s[5] for s in samples])
-    else:
-        label_ids = None
-
-    tokens_tensors = pad_sequence(tokens_tensors, batch_first=True)
-    segments_tensors = pad_sequence(segments_tensors, batch_first=True)
-    marked_e1 = pad_sequence(marked_e1, batch_first=True)
-    marked_e2 = pad_sequence(marked_e2, batch_first=True)
-    masks_tensors = torch.zeros(tokens_tensors.shape, dtype=torch.long)
-    masks_tensors = masks_tensors.masked_fill(tokens_tensors != 0, 1)
-
-    relation_emb = torch.tensor(np.array(relation_emb))
-
-    graph_list = [s[6] for s in samples]
-    graph_loader = DataLoader(graph_list, batch_size=len(graph_list))
-    graph_tensors = [elem for elem in graph_loader][0]
-
-    return (
-        tokens_tensors,
-        segments_tensors,
-        marked_e1,
-        marked_e2,
-        masks_tensors,
-        relation_emb,
-        label_ids,
-        graph_tensors,
-    )
 
 
 def create_mini_batch_orig(samples):

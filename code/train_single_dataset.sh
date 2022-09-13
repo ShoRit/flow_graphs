@@ -2,7 +2,12 @@
 
 set -euxo pipefail
 
+RAYON_RS_NUM_CPUS=5
+
 for (( SEED = 0 ; SEED <= 2; SEED++ ))
 do
-    python rel_classification_info.py --src_dataset $1 --tgt_dataset $1 --mode train --domain src --dep 1 --amr 1 --gnn rgcn --seed $SEED --alpha 1.0 --batch_size 16 --gnn_depth 4 --gpu 0 --lr 2e-5
+    for VALUE in dep amr
+    do
+            echo python train_single_domain_model.py --dataset risec --seed $SEED --experiment_config "$VALUE"_residual --gpu None
+    done
 done

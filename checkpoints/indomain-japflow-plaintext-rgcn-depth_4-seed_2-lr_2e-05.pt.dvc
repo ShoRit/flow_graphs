@@ -1,0 +1,4 @@
+outs:
+- md5: d1c630b328fa4d46bd396fb67ff55354
+  size: 445135593
+  path: indomain-japflow-plaintext-rgcn-depth_4-seed_2-lr_2e-05.pt

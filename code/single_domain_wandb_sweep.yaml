@@ -1,0 +1,16 @@
+program: train_single_domain_model.py
+method: grid
+parameters:
+  seed:
+    values: [0,1,2]
+  dataset:
+    values: ["japflow", "mscorpus"]
+  experiment_config:
+    values: ["baseline"]
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+  - "--gpu"
+  - "0"
