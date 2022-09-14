@@ -103,6 +103,9 @@ def evaluate_transfer_model(
 
     with torch.no_grad():
         test_labels, test_predictions = get_labels_and_model_predictions(model, test_loader, device)
+        import pdb
+
+        pdb.set_trace()
         test_df["label_idxs"] = test_labels
         test_df["prediction_idxs"] = test_predictions
         test_df["predictions"] = [id2lbl[pred] for pred in test_predictions]
