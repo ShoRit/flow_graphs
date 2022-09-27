@@ -1,11 +1,13 @@
+from collections import defaultdict as ddict
 import os
 from typing import Optional
 
 import fire
 import pandas as pd
+import numpy as np
 from sklearn.metrics import precision_recall_fscore_support
 import torch
-from transformers import BertConfig
+from transformers import AutoTokenizer, BertConfig
 
 from dataloader import get_data_loaders
 from dataloading_utils import load_dataset, load_deprels
@@ -56,9 +58,43 @@ def load_model_from_config(
 
     model.load_state_dict(torch.load(model_checkpoint_file, map_location=device))
     model.to(device)
-
     return model
 
+
+def process_df(df, tokenizer):
+    
+    # n1_mask, n2_mask --> Do not have any entity
+    # Compute readability statistics
+    # Error analysis based on label_class and dataset, generate a confusion matrix
+    processed_dict = ddict(list)
+    for index, row in df.iterrows():
+        arg1_mask = torch.tensor(row['arg1_ids']).type(torch.bool)
+        arg2_mask = torch.tensor(row['arg2_ids']).type(torch.bool)
+        tokens    = torch.tensor(row['tokens'])
+        tok_locs  = torch.tensor(row['tok_range'])
+        ent1_locs = np.array(tok_locs[arg1_mask])
+        ent2_locs = np.array(tok_locs[arg2_mask])
+        ent1_start, ent1_end = ent1_locs[0][0], ent1_locs[-1][1]
+        ent2_start, ent2_end = ent2_locs[0][0], ent2_locs[-1][1]
+        ent1_name = tokenizer.decode(tokens[arg1_mask])
+        ent2_name = tokenizer.decode(tokens[arg2_mask])
+        
+        processed_dict['ent1_name'].append(ent1_name)
+        processed_dict['ent2_name'].append(ent2_name)
+        processed_dict['ent1_start'].append(ent1_start)
+        processed_dict['ent2_start'].append(ent2_start)
+        processed_dict['ent1_end'].append(ent1_end)
+        processed_dict['ent2_end'].append(ent2_end)
+        
+        processed_dict['ent1_amr'].append(row.amr_data.n1_mask.sum().item())
+        processed_dict['ent2_amr'].append(row.amr_data.n2_mask.sum().item())
+        
+        processed_dict['sent'].append(row['sent'])
+        processed_dict['labels'].append(row['label'])
+        processed_dict['predictions'].append(row['predictions'])
+
+    processed_df = pd.DataFrame(processed_dict)
+    return processed_df
 
 def evaluate_transfer_model(
     model, src_data, tgt_data, device, graph_data_source, max_seq_len, batch_size, **kwargs
@@ -99,20 +135,17 @@ def evaluate_transfer_model(
         print(f"Dev\tF1: {df1}\tPrecision: {dp}\tRecall: {dr}")
 
     print("Evaluating model on test set...")
-    test_df = pd.DataFrame(test_loader)
+    test_df = pd.DataFrame(test_data)
 
     with torch.no_grad():
         test_labels, test_predictions = get_labels_and_model_predictions(model, test_loader, device)
-        import pdb
-
-        pdb.set_trace()
         test_df["label_idxs"] = test_labels
         test_df["prediction_idxs"] = test_predictions
         test_df["predictions"] = [id2lbl[pred] for pred in test_predictions]
         tp, tr, tf1, _ = precision_recall_fscore_support(
             test_labels, test_predictions, average="macro"
         )
-        print(f"Dev\tF1: {tf1}\tPrecision: {tp}\tRecall: {tr}")
+        print(f"Test \tF1: {tf1}\tPrecision: {tp}\tRecall: {tr}")
 
     return dev_df, test_df
 
@@ -157,11 +190,16 @@ def eval_transfer_model_wrapper(
         **configuration,
     )
 
-    dev_df.to_parquet(
-        f"transfer_results_dev_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.pq"
+    tokenizer = AutoTokenizer.from_pretrained(configuration['bert_model'])
+    
+    dev_df    = process_df(dev_df, tokenizer)
+    test_df   = process_df(test_df, tokenizer)
+
+    dev_df.to_csv(
+        os.path.join(configuration['base_path'],'results',f"transfer_results_dev_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.csv")
     )
-    dev_df.to_parquet(
-        f"transfer_results_test_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.pq"
+    test_df.to_csv(
+        os.path.join(configuration['base_path'],'results',f"transfer_results_test_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.csv")
     )
 
 

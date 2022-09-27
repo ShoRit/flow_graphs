@@ -9,7 +9,7 @@ _base_config = {
     "gnn_depth": 4,
     "max_seq_len": 512,
     "lr": 2e-5,
-    "batch_size": 16,
+    "batch_size": 4,
     "grad_accumulation_steps": 1,
     "epochs": 30,
     "patience": 5,
