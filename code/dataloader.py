@@ -1,4 +1,5 @@
 import random
+from typing import Union
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
@@ -86,6 +87,17 @@ class ZSBertRelDataset(Dataset):
         return (tokens, segments, marked_1, marked_2, desc_emb, label)
 
 
+
+def sample_fraction(dataset, fraction):
+    sampled_instances = random.sample(
+        list(enumerate(dataset)),
+        int(fraction * len(dataset))
+    )
+
+    sampled_indices, sampled_dataset = zip(*sampled_instances)
+    return sampled_indices, sampled_dataset
+
+
 class GraphyRelationsDataset(Dataset):
     def __init__(
         self,
@@ -93,17 +105,13 @@ class GraphyRelationsDataset(Dataset):
         rel2id: dict,
         graph_data_source: str,
         max_seq_len: int,
-        fewshot: float = 1.0,
+        fewshot: Union[float, int] = 1.0,
     ):
         if fewshot == 1.0:
             self.dataset = tuple(dataset)
         else:
-            sampled_instances = random.sample(
-                list(enumerate(dataset)),
-                int(fewshot * len(dataset)),
-            )
-
-            sampled_indices, self.dataset = zip(*sampled_instances)
+            sampled_indices, sampled_dataset = sample_fraction(dataset, fewshot)
+            self.dataset = sampled_dataset
             self.sampled_indices = tuple(sampled_indices)
             self.sampled_index_hash = hash(sampled_indices)
 
