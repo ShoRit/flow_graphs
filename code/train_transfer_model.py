@@ -54,11 +54,11 @@ def train_transfer_model(
 
     src_checkpoint_file = os.path.join(
         checkpoint_folder,
-        get_indomain_checkpoint_filename(**conf_blob, case=case, dataset_name=src_dataset_name),
+        get_indomain_checkpoint_filename(**conf_blob, case=case, dataset_name=src_dataset_name, seed=seed),
     )
 
     tgt_checkpoint_file = os.path.join(
-        checkpoint_folder, get_transfer_checkpoint_filename(**conf_blob, case=case)
+        checkpoint_folder, get_transfer_checkpoint_filename(**conf_blob, case=case, src_dataset_name=src_dataset_name, tgt_dataset_name=tgt_dataset_name, fewshot=fewshot, seed=seed)
     )
 
     #######################################
