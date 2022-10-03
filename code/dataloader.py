@@ -181,13 +181,21 @@ class GraphyRelationsDataset(Dataset):
 
 
 def get_data_loaders(
-    train_data, dev_data, test_data, lbl2id, graph_data_source, max_seq_len, batch_size, fewshot=1.0
+    train_data,
+    dev_data,
+    test_data,
+    lbl2id,
+    graph_data_source,
+    max_seq_len,
+    batch_size,
+    fewshot=1.0,
+    shuffle_train=True,
 ):
     train_set = GraphyRelationsDataset(
         train_data, lbl2id, graph_data_source, max_seq_len, fewshot=fewshot
     )
     train_loader = DataLoader(
-        train_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=True
+        train_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=shuffle_train
     )
 
     dev_set = GraphyRelationsDataset(dev_data, lbl2id, graph_data_source, max_seq_len)
