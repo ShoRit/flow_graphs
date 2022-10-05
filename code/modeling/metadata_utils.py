@@ -19,6 +19,29 @@ def get_case(graph_data_source, graph_connection_type, **kwargs):
     )
 
 
+def get_experiment_config_from_filename(filename):
+    match = INDOMAIN_CHECKPOINT_RE.fullmatch(os.path.basename(filename))
+    if match is None:
+        raise AssertionError(
+            f"Passed filename does not validate as an indomain filename!\nPassed filename: {filename}"
+        )
+
+    case = match.group("case")
+
+    if "amr_residual" in case:
+        return "amr_residual"
+    elif "dep_residual" in case:
+        return "dep_residual"
+    elif "amr" in case:
+        return "amr"
+    elif "dep" in case:
+        return "dep"
+    elif "plaintext" in case:
+        return "baseline"
+    else:
+        raise AssertionError("Unable to identify experiment config from passed file name!")
+
+
 def get_transfer_checkpoint_filename(
     src_dataset_name,
     tgt_dataset_name,

@@ -1,13 +1,8 @@
-from collections import defaultdict as ddict
 import os
 from typing import Optional
 
 import fire
-import pandas as pd
-import numpy as np
-from sklearn.metrics import precision_recall_fscore_support
-import torch
-from transformers import AutoTokenizer, BertConfig
+from transformers import AutoTokenizer
 
 from dataloader import get_data_loaders
 from dataloading_utils import load_dataset
@@ -16,7 +11,7 @@ from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
 from modeling.metadata_utils import (
     get_case,
-    get_transfer_checkpoint_filename,
+    get_experiment_config_from_filename,
     load_model_from_file,
     parse_indomain_checkpoint_filename,
 )
@@ -48,7 +43,7 @@ def evaluate_indomain_model(
 
     model.eval()
     print("Evaluating model on train set...")
-    train_df = get_eval_df(model, dev_data, dev_loader, device, id2lbl, "Train")
+    train_df = get_eval_df(model, train_data, train_loader, device, id2lbl, "Train")
 
     print("Evaluating model on dev set...")
     dev_df = get_eval_df(model, dev_data, dev_loader, device, id2lbl, "Dev")
@@ -59,11 +54,9 @@ def evaluate_indomain_model(
     return train_df, dev_df, test_df
 
 
-def eval_indomain_model_wrapper(
-    model_filename: str, experiment_config: str, gpu: Optional[int] = 0
-):
+def eval_indomain_model_wrapper(model_filename: str, gpu: Optional[int] = 0):
     device = get_device(gpu)
-    experiment_config = model_configurations[experiment_config]
+    experiment_config = model_configurations[get_experiment_config_from_filename(model_filename)]
     model_config = parse_indomain_checkpoint_filename(model_filename)
 
     print("Loading data from disk")
