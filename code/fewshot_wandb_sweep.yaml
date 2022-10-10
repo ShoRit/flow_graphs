@@ -6,7 +6,7 @@ parameters:
   fewshot:
     values: [1, 10, 50, 100]
   src_dataset:
-    values: ["mscorpus"]
+    values: ["japflow"]
   tgt_dataset:
     values: ["risec"]
   experiment_config:
