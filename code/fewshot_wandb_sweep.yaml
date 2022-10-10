@@ -4,11 +4,11 @@ parameters:
   seed:
     values: [0, 1, 2]
   fewshot:
-    values: [0.01, 0.05, 0.1, 0.2, 0.5]
+    values: [1, 10, 50, 100]
   src_dataset:
-    values: ["japflow"]
+    values: ["mscorpus"]
   tgt_dataset:
-    values: ["risec", "mscorpus"]
+    values: ["risec"]
   experiment_config:
     values: ["baseline", "amr_residual", "dep_residual"]
 command:

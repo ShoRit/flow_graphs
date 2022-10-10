@@ -125,7 +125,7 @@ class GraphyRelationsDataset(Dataset):
         max_seq_len: int,
         fewshot: Union[float, int] = 1.0,
     ):
-        if fewshot == 1.0:
+        if isinstance(fewshot, float) and fewshot == 1.0:
             self.dataset = tuple(dataset)
         elif fewshot < 1.0:
             sampled_indices, sampled_dataset = sample_fraction(dataset, fewshot)

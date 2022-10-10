@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import fire
 import torch
@@ -54,11 +54,21 @@ def train_transfer_model(
 
     src_checkpoint_file = os.path.join(
         checkpoint_folder,
-        get_indomain_checkpoint_filename(**conf_blob, case=case, dataset_name=src_dataset_name, seed=seed),
+        get_indomain_checkpoint_filename(
+            **conf_blob, case=case, dataset_name=src_dataset_name, seed=seed
+        ),
     )
 
     tgt_checkpoint_file = os.path.join(
-        checkpoint_folder, get_transfer_checkpoint_filename(**conf_blob, case=case, src_dataset_name=src_dataset_name, tgt_dataset_name=tgt_dataset_name, fewshot=fewshot, seed=seed)
+        checkpoint_folder,
+        get_transfer_checkpoint_filename(
+            **conf_blob,
+            case=case,
+            src_dataset_name=src_dataset_name,
+            tgt_dataset_name=tgt_dataset_name,
+            fewshot=fewshot,
+            seed=seed,
+        ),
     )
 
     #######################################
@@ -266,7 +276,7 @@ def train_transfer_model(
 def train_transfer_model_wrapper(
     src_dataset: str,
     tgt_dataset: str,
-    fewshot: float,
+    fewshot: Union[int, float],
     seed: int,
     experiment_config: str,
     gpu: Optional[int] = 0,
