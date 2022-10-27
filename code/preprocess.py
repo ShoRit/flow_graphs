@@ -15,6 +15,7 @@ from utils import dump_dill, dump_pickle, load_dill
 
 
 def generate_reldesc(device=None):
+    """Generate embeddings for relations based on their descriptions (for ZS-BERT)"""
     from sentence_transformers import SentenceTransformer
 
     rel2desc_emb = {}
@@ -31,6 +32,7 @@ def generate_reldesc(device=None):
 
 
 def conv_rel_map(rel):
+    """Clean/canonicalize of relations across datasets"""
     if args.dataset == "risec":
         if "_PPT" in rel:
             rel = "Arg_PPT"
@@ -88,7 +90,7 @@ def conv_rel_map(rel):
 
 
 def get_chemu_rel(arg1_lbl, arg2_lbl):
-
+    """Narrow the scope of ChEMU relations."""
     assert arg1_lbl in ["REACTION_STEP", "WORKUP"]
 
     if arg2_lbl in ["TIME", "TEMPERATURE", "REAGENT_CATALYST"]:
@@ -101,6 +103,7 @@ def get_chemu_rel(arg1_lbl, arg2_lbl):
 
 
 def processes_rels(ann_fname):
+    """Preprocess datasets into standard json format"""
     ann_data, rel_data = [], []
     ann_dict = {}
     ann_arr_idx = 0
@@ -158,12 +161,14 @@ def processes_rels(ann_fname):
 
 
 def preprocess_texts(text):
+    """Normalize text for AMR processing errors"""
     # text= text.replace('\n','\u00A0')
     text = text.replace("\n", " ")
     return text
 
 
 def create_risec():
+    """Standardize the format of RISeC dataset"""
     data_dir = "/data/flow_graphs/COOKING/RISEC/data/"
     data_dict = ddict(list)
     ent_lbls, rel_lbls = [], []
@@ -216,6 +221,7 @@ def create_risec():
 
 
 def process_lines(entfile, relfile):
+    """Process EFGC dataset, which comes in two files, analogous to preprocess_rels"""
     text = ""
     curr_offset = 0
     curr_label, curr_id = "O", "1_1_1"
@@ -323,6 +329,7 @@ def process_lines(entfile, relfile):
 
 
 def create_japflow():
+    """Standardize the EFCG dataset format"""
     data_dir = "/data/flow_graphs/COOKING/FlowGraph/all"
     data_dict = {"all": []}
     ent_lbls, rel_lbls = [], []
@@ -363,6 +370,7 @@ def create_japflow():
 
 
 def process_mscorpus_rels(ann_fname):
+    """process_rels for mscorpus"""
     ann_data, rel_data = [], []
     ann_dict = {}
     ann_arr_idx = 0
@@ -446,6 +454,7 @@ def process_mscorpus_rels(ann_fname):
 
 
 def create_mscorpus():
+    """Standardize MSCorpus format"""
     data_dir = "/data/flow_graphs/MSPT/"
     data_dict = ddict(list)
     split_dict = ddict(list)
@@ -506,6 +515,7 @@ def create_mscorpus():
 
 
 def process_chemu_rels(ann_fname):
+    """process_rels for ChEMU"""
     ann_data, rel_data = [], []
     ann_dict = {}
     ann_arr_idx = 0
@@ -567,6 +577,7 @@ def process_chemu_rels(ann_fname):
 
 
 def create_chemu():
+    """Standardize format for ChEMU"""
     data_dir = "/data/flow_graphs/chemu/"
     data_dict = ddict(list)
     ent_lbls, rel_lbls = [], []
@@ -618,889 +629,6 @@ def create_chemu():
 
     json.dump(Counter(ent_lbls), open(f"{out_dir}/ent_lbl.json", "w"), indent=4)
     json.dump(Counter(rel_lbls), open(f"{out_dir}/rel_lbl.json", "w"), indent=4)
-
-
-def get_srl_parses(srls=None):
-    if srls is None:
-        srls = {
-            "verbs": [
-                {
-                    "verb": "Did",
-                    "description": "[do.01: Did] Uriah honestly think he could beat the game in under three hours ?",
-                    "tags": [
-                        "B-V",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                    ],
-                    "frame": "do.01",
-                    "frame_score": 0.9999996423721313,
-                    "lemma": "do",
-                },
-                {
-                    "verb": "think",
-                    "description": "Did [ARG0: Uriah] [ARGM-ADV: honestly] [think.01: think] [ARG1: he could beat the game in under three hours] ?",
-                    "tags": [
-                        "O",
-                        "B-ARG0",
-                        "B-ARGM-ADV",
-                        "B-V",
-                        "B-ARG1",
-                        "I-ARG1",
-                        "I-ARG1",
-                        "I-ARG1",
-                        "I-ARG1",
-                        "I-ARG1",
-                        "I-ARG1",
-                        "I-ARG1",
-                        "I-ARG1",
-                        "O",
-                    ],
-                    "frame": "think.01",
-                    "frame_score": 1.0,
-                    "lemma": "think",
-                },
-                {
-                    "verb": "could",
-                    "description": "Did Uriah honestly think he [go.04: could] beat the game in under three hours ?",
-                    "tags": [
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "B-V",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                    ],
-                    "frame": "go.04",
-                    "frame_score": 0.10186540335416794,
-                    "lemma": "could",
-                },
-                {
-                    "verb": "beat",
-                    "description": "Did Uriah honestly think [ARG0: he] [ARGM-MOD: could] [beat.03: beat] [ARG1: the game] [ARGM-TMP: in under three hours] ?",
-                    "tags": [
-                        "O",
-                        "O",
-                        "O",
-                        "O",
-                        "B-ARG0",
-                        "B-ARGM-MOD",
-                        "B-V",
-                        "B-ARG1",
-                        "I-ARG1",
-                        "B-ARGM-TMP",
-                        "I-ARGM-TMP",
-                        "I-ARGM-TMP",
-                        "I-ARGM-TMP",
-                        "O",
-                    ],
-                    "frame": "beat.03",
-                    "frame_score": 0.9999936819076538,
-                    "lemma": "beat",
-                },
-            ],
-            "words": [
-                "Did",
-                "Uriah",
-                "honestly",
-                "think",
-                "he",
-                "could",
-                "beat",
-                "the",
-                "game",
-                "in",
-                "under",
-                "three",
-                "hours",
-                "?",
-            ],
-        }
-    words = srls["words"]
-    frames = srls["verbs"]
-    srl_graph = []
-
-    for frame in frames:
-        verb, tags, = (
-            frame["verb"],
-            frame["tags"],
-        )
-        try:
-            root_start_idx = tags.index("B-V")
-        except Exception as e:
-            root_start_idx = -1
-
-        if root_start_idx == -1:
-            continue
-
-        root_verb = ""
-        for idx in range(root_start_idx, len(tags)):
-            if tags[idx][2:] == "V":
-                root_verb += words[root_start_idx]
-                root_end_idx = idx
-            else:
-                break
-        root_end_idx += 1
-        curr_tag, dep_word, start_idx = None, "", -1
-        for idx, tag in enumerate(tags):
-            if curr_tag is not None:
-                if tag == "O" or tag[2:] == "V":
-                    curr_dict = {
-                        "root_verb": root_verb,
-                        "word": dep_word,
-                        "dep_tag": curr_tag,
-                        "root_start_idx": root_start_idx,
-                        "root_end_idx": root_end_idx,
-                        "start_idx": start_idx,
-                        "end_idx": idx,
-                    }
-                    srl_graph.append(curr_dict)
-                    dep_word, curr_tag = "", None
-                elif tag[2:] == curr_tag:
-                    dep_word += " " + words[idx]
-                elif tag[2:] != curr_tag:
-                    curr_dict = {
-                        "root_verb": root_verb,
-                        "word": dep_word,
-                        "dep_tag": curr_tag,
-                        "root_start_idx": root_start_idx,
-                        "root_end_idx": root_end_idx,
-                        "start_idx": start_idx,
-                        "end_idx": idx,
-                    }
-                    srl_graph.append(curr_dict)
-                    curr_tag, start_idx, dep_word = tag[2:], idx, words[idx]
-            else:
-                if tag != "O" and tag[2:] != "V":
-                    curr_tag, start_idx, dep_word = tag[2:], idx, words[idx]
-
-    verb_start_idxs = list(set([elem["root_start_idx"] for elem in srl_graph]))
-
-    corr_frames = []
-    for frame in srls["verbs"]:
-        try:
-            root_idx = frame["tags"].index("B-V")
-        except Exception as e:
-            root_idx = -1
-        if root_idx not in verb_start_idxs or root_idx == -1:
-            corr_frames.append(0)
-        else:
-            corr_frames.append(1)
-
-    verb_names = []
-    verb_end_idxs = []
-
-    for i, frame in enumerate(srls["verbs"]):
-        if corr_frames[i] == 1:
-            end_idx = -1
-            for idx, tag in enumerate(frame["tags"]):
-                if tag[2:] == "V":
-                    end_idx = idx
-            verb_end_idxs.append(end_idx + 1)
-            verb_names.append(frame["verb"])
-
-    new_srls = {"ins": [], "del": []}
-    for i in range(0, len(verb_names)):
-        vn_i, start_i, end_i = verb_names[i], verb_start_idxs[i], verb_end_idxs[i]
-        for j in range(0, len(verb_names)):
-            if i == j:
-                continue
-            vn_j, start_j, end_j = verb_names[j], verb_start_idxs[j], verb_end_idxs[j]
-            srl_elems = [elem for elem in srl_graph if elem["root_start_idx"] == start_i]
-            for elem in srl_elems:
-                if elem["start_idx"] <= start_j and elem["end_idx"] > end_j:
-                    curr_dict = {
-                        "root_verb": vn_i,
-                        "word": vn_j,
-                        "dep_tag": elem["dep_tag"],
-                        "root_start_idx": start_i,
-                        "root_end_idx": end_i,
-                        "start_idx": start_j,
-                        "end_idx": end_j,
-                    }
-                    new_srls["ins"].append(curr_dict)
-                    new_srls["del"].append(elem)
-
-    # print(srl_graph)
-
-    for elem in new_srls["del"]:
-        if elem in srl_graph:
-            srl_graph.remove(elem)
-
-    for elem in new_srls["ins"]:
-        srl_graph.append(elem)
-
-    edges = [
-        (
-            (elem["root_start_idx"], elem["root_end_idx"]),
-            (elem["start_idx"], elem["end_idx"]),
-            elem["dep_tag"],
-        )
-        for elem in srl_graph
-    ]
-    node_idxs = {}
-    for edge in edges:
-        n1, n2 = edge[0], edge[1]
-        if n1 not in node_idxs:
-            node_idxs[n1] = len(node_idxs)
-        if n2 not in node_idxs:
-            node_idxs[n2] = len(node_idxs)
-
-    nodes = {}
-    for nix in node_idxs:
-        nodes[node_idxs[nix]] = words[nix[0] : nix[1]]
-
-    edge_index = [[], []]
-    for edge in edges:
-        edge_index[0].append(node_idxs[edge[0]])
-        edge_index[1].append(node_idxs[edge[1]])
-
-    edge_type = [elem[2] for elem in edges]
-
-    return {"nodes": nodes, "edge_index": edge_index, "edge_type": edge_type}
-
-
-def dump_srls(data_dir, splits, text_tokenizer="scispacy"):
-    bad_counts = 0
-    # from transformer_srl import dataset_readers, models, predictors
-    if text_tokenizer == "scispacy":
-        nlp = spacy.load("en_core_sci_md")
-    sent_srl_dict = {}
-    srl_sents = set()
-    for split in splits:
-        docs = json.load(open(f"{data_dir}/{split}.json"))
-        for count, doc in tqdm(enumerate(docs)):
-            print(f"Done for {count}/{len(docs)}", end="\r")
-            rel_map = {}
-            lbl_cnt = ddict(int)
-            interdict = ddict(list)
-            parses_arr = []
-            srl_dict = {}
-
-            if text_tokenizer == "scispacy":
-                sents = [x for x in nlp(doc["text"]).sents]
-
-            for rel in doc["rels"]:
-                start_span = min(rel["arg1_start"], rel["arg2_start"])
-                end_span = max(rel["arg1_end"], rel["arg2_end"])
-                rel_map[(start_span, end_span)] = (
-                    rel["arg1_start"],
-                    rel["arg1_end"],
-                    rel["arg1_word"],
-                    rel["arg1_label"],
-                    rel["arg2_start"],
-                    rel["arg2_end"],
-                    rel["arg2_word"],
-                    rel["arg2_label"],
-                    rel["arg_label"],
-                )
-
-            # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
-            sent_idxs = [0] + [sent.end_char for sent in sents]
-            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
-            rel_ints = sorted(rel_map)
-
-            for rel_start, rel_end in rel_ints:
-                for sent_cnt, sent in enumerate(sent_ints):
-                    sent_start, sent_end = sent_ints[sent_cnt]
-                    if rel_start > sent_end:
-                        continue
-                    if rel_end < sent_start:
-                        break
-                    interdict[(rel_start, rel_end)].append(
-                        (sents[sent_cnt], sent_ints[sent_cnt][0])
-                    )
-
-            for rel_int in interdict:
-                (
-                    arg1_start,
-                    arg1_end,
-                    arg1_word,
-                    arg1_label,
-                    arg2_start,
-                    arg2_end,
-                    arg2_word,
-                    arg2_label,
-                    arg_lbl,
-                ) = rel_map[rel_int]
-                arg1_ann_map, arg2_ann_map, bw_arg_ann_map = (
-                    IntervalMapping(),
-                    IntervalMapping(),
-                    IntervalMapping(),
-                )
-
-                arg1_ann_map[arg1_start:arg1_end] = (arg1_start, arg1_end, arg1_label)
-                arg2_ann_map[arg2_start:arg2_end] = (arg2_start, arg2_end, arg2_label)
-                bw_arg_ann_map[min(arg1_start, arg2_start) : max(arg2_end, arg1_end)]
-
-                sent_str, sent_start = "", None
-
-                for elem in interdict[rel_int]:
-                    sent, sent_start_pos = elem
-                    if sent_start is None:
-                        sent_start = sent_start_pos
-                    sent_str += str(sent)
-                    if text_tokenizer == "scispacy":
-                        sent_toks = sent
-
-                    srl_sents.add(sent_str)
-
-    print(f"Total number of sentences = {len(srl_sents)}")
-
-    # predictor = predictors.SrlTransformersPredictor.from_path("/projects/flow_graphs/models/srl_bert_base_conll2012.tar.gz", "transformer_srl")
-    # for sent in tqdm(list(srl_sents)):
-    # 	srls = predictor.predict(sentence= sent)
-    # 	srl_dict[sent] = get_srl_parses(srls)
-
-    # dump_pickle(srl_dict, f'{data_dir}/srl_sents.pkl')
-
-
-def dump_amrs(data_dir, splits, bert_model, text_tokenizer="scispacy"):
-    from transformers import AutoTokenizer, AutoModel
-
-    bad_counts = 0
-    import amrlib, spacy
-    from amrlib.graph_processing.annotator import add_lemmas
-    from amrlib.alignments.rbw_aligner import RBWAligner
-
-    tokenizer = AutoTokenizer.from_pretrained(bert_model)
-    model = AutoModel.from_pretrained(bert_model)
-
-    amrlib.setup_spacy_extension()
-
-    if text_tokenizer == "scispacy":
-        nlp = spacy.load("en_core_sci_md")
-    elif text_tokenizer == "spacy":
-        nlp = spacy.load("en_core_web_sm")
-
-    bad_amr_sents = open(f"{data_dir}/bad_amr_sents.log", "w")
-    sent_amr_dict = {}
-    amr_sents = set()
-    for split in splits:
-        docs = json.load(open(f"{data_dir}/{split}.json"))
-        for count, doc in enumerate(docs):
-            print(f"Done for {count}/{len(docs)}", end="\r")
-            rel_map = {}
-            lbl_cnt = ddict(int)
-            interdict = ddict(list)
-            parses_arr = []
-
-            sents = [x for x in nlp(doc["text"]).sents]
-
-            for rel in doc["rels"]:
-                start_span = min(rel["arg1_start"], rel["arg2_start"])
-                end_span = max(rel["arg1_end"], rel["arg2_end"])
-                rel_map[(start_span, end_span)] = (
-                    rel["arg1_start"],
-                    rel["arg1_end"],
-                    rel["arg1_word"],
-                    rel["arg1_label"],
-                    rel["arg2_start"],
-                    rel["arg2_end"],
-                    rel["arg2_word"],
-                    rel["arg2_label"],
-                    rel["arg_label"],
-                )
-
-            # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
-            sent_idxs = [0] + [sent.end_char for sent in sents]
-            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
-            rel_ints = sorted(rel_map)
-
-            for rel_start, rel_end in rel_ints:
-                for sent_cnt, sent in enumerate(sent_ints):
-                    sent_start, sent_end = sent_ints[sent_cnt]
-                    if rel_start > sent_end:
-                        continue
-                    if rel_end < sent_start:
-                        break
-                    interdict[(rel_start, rel_end)].append(
-                        (sents[sent_cnt], sent_ints[sent_cnt][0])
-                    )
-
-            for rel_int in interdict:
-                (
-                    arg1_start,
-                    arg1_end,
-                    arg1_word,
-                    arg1_label,
-                    arg2_start,
-                    arg2_end,
-                    arg2_word,
-                    arg2_label,
-                    arg_lbl,
-                ) = rel_map[rel_int]
-                arg1_ann_map, arg2_ann_map, bw_arg_ann_map = (
-                    IntervalMapping(),
-                    IntervalMapping(),
-                    IntervalMapping(),
-                )
-
-                arg1_ann_map[arg1_start:arg1_end] = (arg1_start, arg1_end, arg1_label)
-                arg2_ann_map[arg2_start:arg2_end] = (arg2_start, arg2_end, arg2_label)
-                bw_arg_ann_map[min(arg1_start, arg2_start) : max(arg2_end, arg1_end)]
-
-                sent_str, sent_start = "", None
-
-                for elem in interdict[rel_int]:
-                    sent, sent_start_pos = elem
-                    if sent_start is None:
-                        sent_start = sent_start_pos
-                    # sent_str 						+=str(sent.strip())
-                    sent_str += str(sent)
-                    sent_toks = sent
-                    amr_sents.add(sent_str)
-
-    print(f"Total number of sentences = {len(amr_sents)}")
-
-    bad_counts = 0
-    amr_dict = ddict(dict)
-    for sent in tqdm(list(amr_sents)):
-        try:
-            doc = nlp(sent)
-            bert_toks = tokenizer(sent, return_tensors="pt")
-            bert_embs = model(**bert_toks)["last_hidden_state"][0]
-            input_ids = list(np.array(bert_toks["input_ids"].squeeze(dim=0).cpu()))
-            node_dict = {}
-            edges_arr = []
-            node2str = {}
-            node2embs = {}
-
-            start_tok_idx, end_tok_idx = 1, 1
-            tok_pos = []
-
-            for count, span in enumerate(doc.sents):
-                graph_string = span._.to_amr()
-                penman_graph = add_lemmas(graph_string[0], snt_key="snt")
-                aligner = RBWAligner.from_penman_w_json(
-                    penman_graph
-                )  # use this with an annotated penman graph object
-                aligned_string = aligner.get_graph_string()
-                alignments = (
-                    aligned_string.split("::")[4]
-                    .split("\n")[0]
-                    .replace("alignments", "")
-                    .strip()
-                    .split()
-                )
-                tokens = ast.literal_eval(
-                    aligned_string.split("::")[2].split("\n")[0][len("tokens") + 1 :]
-                )
-
-                for tok_idx, tok_str in enumerate(tokens):
-                    curr_bert_toks = tokenizer.encode(tok_str, add_special_tokens=False)
-                    end_tok_idx = start_tok_idx + len(curr_bert_toks)
-                    tok_pos.append((tok_str, tok_idx, start_tok_idx, end_tok_idx))
-                    start_tok_idx = end_tok_idx
-                    # for i in range(start_tok_idx, len(input_ids)):
-                    # 	if input_ids[i] 			== curr_bert_toks[0]:
-                    # 		start_tok_idx 			= i
-                    # 		for j in range(i, i+len(curr_bert_toks)):
-                    # 			assert curr_bert_toks[j-i]== input_ids[j]
-                    # 		end_tok_idx				= j
-                    # 		tok_pos.append((tok_str, tok_idx, start_tok_idx, end_tok_idx))
-                    # 		start_tok_idx 			= end_tok_idx
-                    # 		break
-
-                # triples 							= penman_graph.triples
-                edges = penman_graph.edges()
-
-                for n1, rel, n2 in edges:
-                    n1 = f"{count}-{n1}"
-                    n2 = f"{count}-{n2}"
-                    if n1 not in node_dict:
-                        node_dict[n1] = len(node_dict)
-                    if n2 not in node_dict:
-                        node_dict[n2] = len(node_dict)
-
-                for edge in edges:
-                    src, rel, tgt = edge.source, edge.role, edge.target
-                    edges_arr.append((f"{count}-{src}", rel, f"{count}-{tgt}"))
-
-                last_aligned_str = aligned_string.split("::")[4]
-                aligned_idx = last_aligned_str.index("\n") + 1
-                aligned_graph_strs = last_aligned_str[aligned_idx:].strip().split("\n")
-
-                last_node = None
-                for aligned_node in aligned_graph_strs:
-                    e_match = re.search(r"~e\.\d+", aligned_node)
-                    z_match = re.search(r"\(z\d+ \/", aligned_node)
-                    if e_match is not None and z_match is not None:
-                        e_tok = int(e_match[0].split(".")[1])
-                        z_node = z_match[0][1:].split("/")[0]
-                        node2str[f"{count}-{z_node}"] = tok_pos[e_tok]
-                    elif z_match is not None:
-                        z_node = z_match[0][1:].split("/")[0]
-                    elif e_match is not None:
-                        e_tok = int(e_match[0].split(".")[1])
-                        node2str[f"{count}-{last_node}"] = tok_pos[e_tok]
-                for node in node2str:
-                    start_idx, end_idx = node2str[node][2], node2str[node][3]
-                    node2embs[node] = torch.max(bert_embs[start_idx:end_idx], dim=0)[0]
-
-            amr_dict[sent]["node2str"] = node2str
-            amr_dict[sent]["node2embs"] = node2embs
-            amr_dict[sent]["edges_arr"] = edges_arr
-            amr_dict[sent]["node_dict"] = node_dict
-            amr_dict[sent]["triples"] = penman_graph.triples
-            amr_dict[sent]["tok_pos"] = tok_pos
-            amr_dict[sent]["aligned_graph"] = aligned_graph_strs
-
-        except Exception as e:
-            print(e)
-            bad_amr_sents.write(sent + "\n")
-            # bad_amr_sents.write(e)
-
-    print(bad_counts)
-    dump_pickle(amr_dict, f"{data_dir}/amr_sents.pkl")
-
-
-"""
-def get_amrs(sent, bert_model, text_tokenizer='scispacy'):
-    from transformers import AutoTokenizer, AutoModel
-    import amrlib, spacy	
-    from amrlib.graph_processing.annotator import add_lemmas
-    from amrlib.alignments.rbw_aligner import RBWAligner
-    
-    tokenizer         	= 	AutoTokenizer.from_pretrained(bert_model)
-    model 				= 	AutoModel.from_pretrained(bert_model)
- 
-    amrlib.setup_spacy_extension()
- 
-    if text_tokenizer == 'scispacy': nlp = spacy.load("en_core_sci_md")
-    elif text_tokenizer == 'spacy':  nlp = spacy.load("en_core_web_sm")
- 
-    bad_amr_sents 				=  open(f'{data_dir}/bad_amr_sents.log','w') 
-    sent_amr_dict 				=  {}
-    amr_sents 		 			=  set()
-    for split in splits:
-        docs 					= json.load(open(f'{data_dir}/{split}.json'))
-        for count, doc in enumerate(docs):
-            print(f'Done for {count}/{len(docs)}', end='\r')
-            rel_map 			= {}
-            lbl_cnt 			= ddict(int)
-            interdict	   		= ddict(list)
-            parses_arr 			= []
-
-        
-            sents = [x for x in nlp(doc['text']).sents]
-
-            for rel in doc['rels']:
-                start_span 	= min(rel['arg1_start'], rel['arg2_start'])
-                end_span	= max(rel['arg1_end'], rel['arg2_end'])
-                rel_map[(start_span, end_span)] = (rel['arg1_start'], rel['arg1_end'], rel['arg1_word'], rel['arg1_label'], \
-                                                rel['arg2_start'], rel['arg2_end'], rel['arg2_word'], rel['arg2_label'], rel['arg_label'])
-
-            # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
-            sent_idxs = [0]+[sent.end_char for sent in sents]
-            sent_ints = [(sent_idxs[i], sent_idxs[i+1]) for i in range(0,len(sent_idxs)-1)]
-            rel_ints  = sorted(rel_map)
-
-            for rel_start, rel_end in rel_ints:
-                for sent_cnt, sent in enumerate(sent_ints):
-                    sent_start, sent_end = sent_ints[sent_cnt]
-                    if rel_start 	> sent_end:		 continue
-                    if rel_end 		< sent_start:	 break
-                    interdict[(rel_start, rel_end)].append((sents[sent_cnt], sent_ints[sent_cnt][0]))
-
-            for rel_int in interdict:
-                arg1_start, arg1_end, arg1_word, arg1_label,  arg2_start, arg2_end, arg2_word, arg2_label, arg_lbl = rel_map[rel_int]
-                arg1_ann_map, arg2_ann_map, bw_arg_ann_map 				= IntervalMapping(), IntervalMapping(), IntervalMapping()
-                
-                arg1_ann_map[arg1_start:arg1_end] = (arg1_start ,arg1_end, arg1_label)
-                arg2_ann_map[arg2_start:arg2_end] = (arg2_start ,arg2_end, arg2_label)
-                bw_arg_ann_map[min(arg1_start, arg2_start): max(arg2_end, arg1_end)]
-
-                sent_str, sent_start 				= "", None
-
-                for elem  in interdict[rel_int]:
-                    sent, sent_start_pos 			= elem
-                    if sent_start is None:
-                        sent_start 					= sent_start_pos
-                    # sent_str 						+=str(sent.strip())
-                    sent_str 						+= str(sent)
-                    sent_toks 						= sent
-                    amr_sents.add(sent_str)
-    
-    print(f"Total number of sentences = {len(amr_sents)}")
- 
-    bad_counts 										= 0
-    amr_dict 		    							= ddict(dict)
-    for sent in tqdm(list(amr_sents)):
-        try:
-            doc 									= nlp(sent)	
-            bert_toks 								= tokenizer(sent, return_tensors='pt')
-            bert_embs 								= model(**bert_toks)['last_hidden_state'][0]
-            input_ids 								= list(np.array(bert_toks['input_ids'].squeeze(dim=0).cpu()))
-            node_dict 								= {}
-            edges_arr 								= []
-            node2str 								= {}
-            node2embs								= {}
-    
-            start_tok_idx, end_tok_idx 				= 1,1
-            tok_pos 								= []
-    
-            for count, span in enumerate(doc.sents):
-                graph_string 						= span._.to_amr()
-                penman_graph 						= add_lemmas(graph_string[0], snt_key='snt')
-                aligner 							= RBWAligner.from_penman_w_json(penman_graph)    # use this with an annotated penman graph object
-                aligned_string  					= aligner.get_graph_string()   
-                alignments 							= aligned_string.split('::')[4].split('\n')[0].replace('alignments','').strip().split()
-                tokens                              = ast.literal_eval(aligned_string.split('::')[2].split('\n')[0][len('tokens')+1:])
-
-                for tok_idx, tok_str in enumerate(tokens):
-                    curr_bert_toks 					= tokenizer.encode(tok_str, add_special_tokens=False)
-                    end_tok_idx						= start_tok_idx + len(curr_bert_toks)
-                    tok_pos.append((tok_str, tok_idx, start_tok_idx, end_tok_idx))
-                    start_tok_idx 					= end_tok_idx
-                    # for i in range(start_tok_idx, len(input_ids)):
-                    # 	if input_ids[i] 			== curr_bert_toks[0]:
-                    # 		start_tok_idx 			= i
-                    # 		for j in range(i, i+len(curr_bert_toks)):
-                    # 			assert curr_bert_toks[j-i]== input_ids[j]
-                    # 		end_tok_idx				= j
-                    # 		tok_pos.append((tok_str, tok_idx, start_tok_idx, end_tok_idx))
-                    # 		start_tok_idx 			= end_tok_idx
-                    # 		break
-    
-                # triples 							= penman_graph.triples
-                edges 								= penman_graph.edges()
-
-                for n1,rel,n2 in edges:
-                    n1 = f'{count}-{n1}' 
-                    n2 = f'{count}-{n2}'
-                    if n1 not in node_dict: node_dict[n1] 				= len(node_dict)
-                    if n2 not in node_dict: node_dict[n2] 				= len(node_dict)
-                
-                for edge in edges:
-                    src, rel, tgt 										= edge.source, edge.role, edge.target 
-                    edges_arr.append((f'{count}-{src}', rel, f'{count}-{tgt}'))
-
-                last_aligned_str 					= aligned_string.split('::')[4]
-                aligned_idx 						= last_aligned_str.index('\n') +1
-                aligned_graph_strs					= last_aligned_str[aligned_idx:].strip().split('\n')
-                
-                last_node 							= None
-                for aligned_node in aligned_graph_strs:
-                    e_match = re.search(r'~e\.\d+',aligned_node)
-                    z_match = re.search(r'\(z\d+ \/',aligned_node)
-                    if e_match is not None and z_match is not None:
-                        e_tok  = int(e_match[0].split('.')[1])
-                        z_node = z_match[0][1:].split('/')[0]
-                        node2str[f'{count}-{z_node}'] = tok_pos[e_tok]
-                    elif z_match is not None:
-                        z_node = z_match[0][1:].split('/')[0]
-                    elif e_match is not None:
-                        e_tok  = int(e_match[0].split('.')[1])
-                        node2str[f'{count}-{last_node}'] = tok_pos[e_tok]
-     
-     
-                for node in node2str:
-                    start_idx, end_idx 			= node2str[node][2], node2str[node][3]
-                    node2embs[node]				= torch.max(bert_embs[start_idx:end_idx],dim=0)[0]
-
-            amr_dict[sent]['node2str']		= node2str
-            amr_dict[sent]['node2embs']		= node2embs
-            amr_dict[sent]['edges_arr']		= edges_arr
-            amr_dict[sent]['node_dict']		= node_dict
-            amr_dict[sent]['triples']		= penman_graph.triples
-            amr_dict[sent]['tok_pos']		= tok_pos
-            amr_dict[sent]['aligned_graph'] = aligned_graph_strs
-
-        
-        except Exception as e:
-            print(e)
-            bad_amr_sents.write(sent+'\n')
-            # bad_amr_sents.write(e)
-            
-    print(bad_counts)
-    dump_pickle(amr_dict, f'{data_dir}/amr_sents2.pkl')
-            
-
-"""
-
-
-def add_parses(data_dir, splits, text_tokenizer="scispacy"):
-    from transformer_srl import predictors
-
-    stanza_nlp = stanza.Pipeline(lang="en")
-    data = ddict(lambda: ddict(list))
-    labels = {}
-    if text_tokenizer == "scispacy":
-        nlp = spacy.load("en_core_sci_md")
-    bad_counts = 0
-    for split in splits:
-        docs = json.load(open(f"{data_dir}/{split}.json"))
-
-        for count, doc in enumerate(docs):
-            print(f"Done for {count}/{len(docs)}", end="\r")
-            rel_map = {}
-            lbl_cnt = ddict(int)
-            interdict = ddict(list)
-            parses_arr = []
-
-            srl_dict = {}
-
-            if text_tokenizer == "scispacy":
-                sents = [x for x in nlp(doc["text"]).sents]
-
-            for rel in doc["rels"]:
-                start_span = min(rel["arg1_start"], rel["arg2_start"])
-                end_span = max(rel["arg1_end"], rel["arg2_end"])
-                rel_map[(start_span, end_span)] = (
-                    rel["arg1_start"],
-                    rel["arg1_end"],
-                    rel["arg1_word"],
-                    rel["arg1_label"],
-                    rel["arg2_start"],
-                    rel["arg2_end"],
-                    rel["arg2_word"],
-                    rel["arg2_label"],
-                    rel["arg_label"],
-                )
-
-            # sent_idxs = [0]+[max([tok.idx for tok in sent])+1 for sent in sents]
-            sent_idxs = [0] + [sent.end_char for sent in sents]
-            sent_ints = [(sent_idxs[i], sent_idxs[i + 1]) for i in range(0, len(sent_idxs) - 1)]
-            rel_ints = sorted(rel_map)
-
-            for rel_start, rel_end in rel_ints:
-                for sent_cnt, sent in enumerate(sent_ints):
-                    sent_start, sent_end = sent_ints[sent_cnt]
-                    if rel_start > sent_end:
-                        continue
-                    if rel_end < sent_start:
-                        break
-                    interdict[(rel_start, rel_end)].append(
-                        (sents[sent_cnt], sent_ints[sent_cnt][0])
-                    )
-
-            for rel_int in interdict:
-                (
-                    arg1_start,
-                    arg1_end,
-                    arg1_word,
-                    arg1_label,
-                    arg2_start,
-                    arg2_end,
-                    arg2_word,
-                    arg2_label,
-                    arg_lbl,
-                ) = rel_map[rel_int]
-                arg1_ann_map, arg2_ann_map, bw_arg_ann_map = (
-                    IntervalMapping(),
-                    IntervalMapping(),
-                    IntervalMapping(),
-                )
-
-                arg1_ann_map[arg1_start:arg1_end] = (arg1_start, arg1_end, arg1_label)
-                arg2_ann_map[arg2_start:arg2_end] = (arg2_start, arg2_end, arg2_label)
-                bw_arg_ann_map[min(arg1_start, arg2_start) : max(arg2_end, arg1_end)]
-
-                sent_str, sent_start = "", None
-
-                for elem in interdict[rel_int]:
-                    sent, sent_start_pos = elem
-                    if sent_start is None:
-                        sent_start = sent_start_pos
-                    sent_str += str(sent)
-                    if text_tokenizer == "scispacy":
-                        sent_toks = sent
-
-                arg1_start_idx, arg2_start_idx, arg1_end_idx, arg2_end_idx = (
-                    arg1_start - sent_start,
-                    arg2_start - sent_start,
-                    arg1_end - sent_start,
-                    arg2_end - sent_start,
-                )
-
-                try:
-                    assert sent_str[arg1_start_idx:arg1_end_idx] == arg1_word
-                    assert sent_str[arg2_start_idx:arg2_end_idx] == arg2_word
-                except Exception as e:
-                    try:
-                        arg1_start_idx, arg2_start_idx = sent_str.index(arg1_word), sent_str.index(
-                            arg2_word
-                        )
-                        arg1_end_idx, arg2_end_idx = arg1_start_idx + len(
-                            arg1_word
-                        ), arg2_start_idx + len(arg2_word)
-                        assert sent_str[arg1_start_idx:arg1_end_idx] == arg1_word
-                        assert sent_str[arg2_start_idx:arg2_end_idx] == arg2_word
-                    except Exception as e:
-                        bad_counts += 1
-
-                dep_arr = []
-                dep_doc = stanza_nlp(sent_str)
-                for sent in dep_doc.sentences:
-                    for word in sent.words:
-                        word_id, word_text, word_head, word_deprel = (
-                            word.id,
-                            word.text,
-                            word.head,
-                            word.deprel,
-                        )
-
-                        if word.start_char >= arg1_start_idx and word.end_char <= arg1_end_idx:
-                            dep_val = 1
-                        elif word.start_char >= arg2_start_idx and word.end_char <= arg2_end_idx:
-                            dep_val = 2
-                        else:
-                            dep_val = 0
-                        dep_arr.append((word_id, word_head, word_text, word_deprel, dep_val))
-
-                predictor = predictors.SrlTransformersPredictor.from_path(
-                    "/projects/flow_graphs/models/srl_bert_base_conll2012.tar.gz",
-                    "transformer_srl",
-                )
-
-                if sent_str not in srl_dict:
-                    srls = predictor.predict(sentence=sent_str)
-                    srl_dict[sent_str] = get_srl_parses(srls)
-
-                parses_arr.append(
-                    {
-                        "file": doc["_id"],
-                        "arg_label": arg_lbl,
-                        "sent": sent_str,
-                        "deps": dep_arr,
-                        "srls": srl_dict[sent_str],
-                        "arg1_start": arg1_start,
-                        "arg1_end": arg1_end,
-                        "arg1_word": arg1_word,
-                        "arg1_label": arg1_label,
-                        "arg2_start": arg2_start,
-                        "arg2_end": arg2_end,
-                        "arg2_word": arg2_word,
-                        "arg2_label": arg2_label,
-                    }
-                )
-
-            doc["parses"] = parses_arr
-
-        with open(f"{data_dir}/parses_{split}.json", "w") as json_file:
-            json.dump(docs, json_file, indent=4)
-
-        print(bad_counts)
-    return
 
 
 def create_datafield(
@@ -1925,53 +1053,6 @@ def create_datafield(
     return data
 
 
-def create_mini_batch_orig(samples):
-    tokens_tensors = [s[0] for s in samples]
-    segments_tensors = [s[1] for s in samples]
-    marked_e1 = [s[2] for s in samples]
-    marked_e2 = [s[3] for s in samples]
-    relation_emb = [s[4] for s in samples]
-
-    if samples[0][5] is not None:
-        label_ids = torch.stack([s[5] for s in samples])
-    else:
-        label_ids = None
-
-    tokens_tensors = pad_sequence(tokens_tensors, batch_first=True)
-    segments_tensors = pad_sequence(segments_tensors, batch_first=True)
-    marked_e1 = pad_sequence(marked_e1, batch_first=True)
-    marked_e2 = pad_sequence(marked_e2, batch_first=True)
-    masks_tensors = torch.zeros(tokens_tensors.shape, dtype=torch.long)
-    masks_tensors = masks_tensors.masked_fill(tokens_tensors != 0, 1)
-
-    relation_emb = torch.tensor(np.array(relation_emb))
-
-    # graph_list 						= [s[6] for s in samples]
-    # graph_loader 					= DataLoader(graph_list, batch_size=len(graph_list))
-    # graph_tensors 					= [elem for elem in  graph_loader][0]
-
-    return (
-        tokens_tensors,
-        segments_tensors,
-        marked_e1,
-        marked_e2,
-        masks_tensors,
-        relation_emb,
-        label_ids,
-    )
-
-
-def create_fewshot_data():
-    for dataset in ["risec", "japflow", "mscorpus", "chemu"]:
-        print(f"Preprocessing dataset: {dataset}")
-        data = load_dill(f"/projects/flow_graphs/data/{dataset}/data_amr.dill")
-        rels_data = list(data["train"]["rels"])
-        random.shuffle(rels_data)
-        for fewshot in [0.01, 0.05, 0.1, 0.2, 0.5]:
-            data["train"]["rels"] = rels_data[0 : int(len(rels_data) * fewshot)]
-            dump_dill(data, f"/projects/flow_graphs/data/{dataset}/data-{fewshot}_amr.dill")
-
-
 def create_dataset():
     if args.dataset == "risec":
         create_risec()
@@ -1981,29 +1062,10 @@ def create_dataset():
         create_mscorpus()
     elif args.dataset == "chemu":
         create_chemu()
-    # elif    args.dataset == 'curd': 	create_curd()
-
-
-def create_parses():
-    if args.dataset == "risec":
-        if args.parse == "srl":
-            dump_srls(
-                "/projects/flow_graphs/data/risec/",
-                ["train", "dev", "test"],
-                text_tokenizer="scispacy",
-            )
-        elif args.parse == "amr":
-            dump_amrs(
-                "/projects/flow_graphs/data/risec/",
-                ["train", "dev", "test"],
-                bert_model="bert-base-uncased",
-                text_tokenizer="scispacy",
-            )
-        # dataset 	= add_parses('/projects/flow_graphs/data/risec/',['train','dev','test'])
-        # dump_dill(dataset, f'/projects/flow_graphs/data/risec/parses.dill')
 
 
 def load_dataset():
+    """Takes a preprocessed dataset, annotates with dependency/AMR parse, dumps to dill"""
     # if  args.dataset == 'risec':
 
     # dataset 	= create_datafield(f'/projects/flow_graphs/data/{args.dataset}/',['train','dev','test'], bert_model ='bert-base-uncased', text_tokenizer='scispacy')
