@@ -1101,11 +1101,3 @@ if __name__ == "__main__":
         create_dataset()
     elif args.step == "load":
         load_dataset()
-    elif args.step == "fewshot":
-        create_fewshot_data()
-    elif args.step == "rel_emb":
-        generate_reldesc()
-    elif args.step == "parse":
-        create_parses()
-    elif args.step == "srl":
-        create_srl_tags()
