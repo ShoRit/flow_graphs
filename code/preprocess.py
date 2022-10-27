@@ -1,6 +1,16 @@
+import argparse
+from collections import defaultdict as ddict
+import glob
+import json
+import pickle
+import pprint
+import random
+import time
+
 from nltk.stem import WordNetLemmatizer
 import spacy
 import stanza
+import torch
 from torch.nn.utils.rnn import pad_sequence
 from tqdm.auto import tqdm
 
@@ -21,7 +31,6 @@ def generate_reldesc(device=None):
     rel2desc_emb = {}
     rel2desc = json.load(open(f"/projects/flow_graphs/data/rel2desc.json"))
     encoder = SentenceTransformer("bert-base-nli-mean-tokens", device=device)
-    rel2id, id2rel = {}, {}
 
     for i, rel in enumerate(rel2desc):
         rel2id[rel] = i
@@ -660,7 +669,6 @@ def create_datafield(
 
     lemmatizer = WordNetLemmatizer()
 
-    rel2desc, all_rel2id, id2all_rel, rel2desc_emb = generate_reldesc()
     data = ddict(lambda: ddict(list))
     labels = {}
 
@@ -1029,7 +1037,6 @@ def create_datafield(
                         "org_toks": org_toks,
                         "arg1_ids": e1_toks,
                         "arg2_ids": e2_toks,
-                        "desc_emb": rel2desc_emb[arg_lbl],
                         "span_info": rel_map[rel_int],
                         "label": arg_lbl,
                         "sent": sent_str,
@@ -1079,7 +1086,7 @@ def load_dataset():
     }[args.dataset]
 
     dataset = create_datafield(
-        f"/projects/flow_graphs/data/{args.dataset}",
+        f"/home/sgururaj/src/flow_graphs/data/{args.dataset}",
         splits,
         bert_model="bert-base-uncased",
         text_tokenizer="scispacy",
