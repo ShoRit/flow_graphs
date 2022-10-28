@@ -1,13 +1,13 @@
 import fire
 
 from chemu import create_chemu
-from efgc import create_japflow
+from efgc import standardize_efgc
 from mscorpus import create_mscorpus
 from risec import create_risec
 
 DATASET_TO_FUNCTION = {
     "chemu": create_chemu,
-    "efgc": create_japflow,
+    "efgc": standardize_efgc,
     "mscorpus": create_mscorpus,
     "risec": create_risec,
 }

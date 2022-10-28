@@ -6,24 +6,15 @@ import json
 from helper import punct_dict
 
 
-def conv_rel_map(rel):
-    if rel == "t":
-        rel = "targ"
-    elif rel == "a":
-        rel = "agent"
-    elif rel == "o":
-        rel = "other-mod"
-    elif rel == "d":
-        rel = "dest"
-    elif rel == "v":
-        rel = "v-tm"
-    elif rel == "s":
-        rel = "targ"
-    return rel
+RELATION_MAP = {"t": "targ", "a": "agent", "o": "other-mod", "d": "dest", "v": "v-tm", "s": "targ"}
 
 
-def process_lines(entfile, relfile):
-    """Process EFGC dataset, which comes in two files, analogous to preprocess_rels"""
+def normalize_relation(rel):
+    return RELATION_MAP.get(rel, rel)
+
+
+def process_filepair(entity_filename: str, relation_filename: str):
+    """Process EFGC dataset, which comes in two files"""
     text = ""
     curr_offset = 0
     curr_label, curr_id = "O", "1_1_1"
@@ -31,7 +22,7 @@ def process_lines(entfile, relfile):
     ents_dict = {}
     anns, rels = [], []
 
-    for line in open(entfile):
+    for line in open(entity_filename):
         try:
             proc_num, sent_num, char_num, word, _, label = line.strip().split(" ")
         except Exception as e:
@@ -101,7 +92,7 @@ def process_lines(entfile, relfile):
             }
         )
 
-    for line in open(relfile, encoding="unicode_escape"):
+    for line in open(relation_filename, encoding="unicode_escape"):
         if line.startswith("#"):
             continue
         info = line.strip().split()
@@ -123,14 +114,14 @@ def process_lines(entfile, relfile):
                 "arg2_end": ents_dict[arg2_idx][1],
                 "arg2_word": ents_dict[arg2_idx][3],
                 "arg2_label": ents_dict[arg2_idx][2],
-                "arg_label": conv_rel_map(rel),
+                "arg_label": normalize_relation(rel),
             }
         )
 
     return anns, rels, text
 
 
-def create_japflow():
+def standardize_efgc():
     """Standardize the EFCG dataset format"""
     data_dir = "/data/flow_graphs/COOKING/FlowGraph/all"
     data_dict = {"all": []}
@@ -141,7 +132,7 @@ def create_japflow():
         relfile = entfile[:-5] + ".flow"
         doc_id = entfile.split("/")[-1][:-5]
         try:
-            anns, rels, text = process_lines(entfile, relfile)
+            anns, rels, text = process_filepair(entfile, relfile)
         except Exception as e:
             print(e)
             import pdb
