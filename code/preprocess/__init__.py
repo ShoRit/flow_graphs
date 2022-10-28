@@ -6,6 +6,6 @@ from preprocess.align_and_add_parses import align_and_add_parses
 fire.Fire(
     {
         "standardize_dataset_format": standardize_dataset_format,
-        "align_and_add_parsers": align_and_add_parses,
+        "align_and_add_parses": align_and_add_parses,
     }
 )
