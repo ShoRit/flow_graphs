@@ -1,12 +1,12 @@
 import fire
 
-from chemu import create_chemu
+from chemu import standardize_chemu
 from efgc import standardize_efgc
 from mscorpus import standardize_mscorpus
 from risec import standardize_risec
 
 DATASET_TO_FUNCTION = {
-    "chemu": create_chemu,
+    "chemu": standardize_chemu,
     "efgc": standardize_efgc,
     "mscorpus": standardize_mscorpus,
     "risec": standardize_risec,

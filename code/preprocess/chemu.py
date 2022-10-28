@@ -5,7 +5,7 @@ import json
 import pprint
 
 
-def get_chemu_rel(arg1_lbl, arg2_lbl):
+def normalize_arg2_lbl(arg1_lbl, arg2_lbl):
     """Narrow the scope of ChEMU relations."""
     assert arg1_lbl in ["REACTION_STEP", "WORKUP"]
 
@@ -60,7 +60,7 @@ def process_chemu_rels(ann_fname):
                 ann_data[arg1_idx]["label"],
                 ann_data[arg2_idx]["label"],
             )
-            arg_lbl = get_chemu_rel(arg1_lbl, arg2_lbl)
+            arg_lbl = normalize_arg2_lbl(arg1_lbl, arg2_lbl)
 
             rel_data.append(
                 {
@@ -80,7 +80,7 @@ def process_chemu_rels(ann_fname):
     return ann_data, rel_data
 
 
-def create_chemu():
+def standardize_chemu():
     """Standardize format for ChEMU"""
     data_dir = "/data/flow_graphs/chemu/"
     data_dict = defaultdict(list)
