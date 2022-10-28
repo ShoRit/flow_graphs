@@ -1,9 +1,9 @@
 import fire
 
-from chemu import standardize_chemu
-from efgc import standardize_efgc
-from mscorpus import standardize_mscorpus
-from risec import standardize_risec
+from preprocess.chemu import standardize_chemu
+from preprocess.efgc import standardize_efgc
+from preprocess.mscorpus import standardize_mscorpus
+from preprocess.risec import standardize_risec
 
 DATASET_TO_FUNCTION = {
     "chemu": standardize_chemu,
@@ -15,7 +15,7 @@ DATASET_TO_FUNCTION = {
 
 def standardize_dataset_format(dataset):
     standardize_fn = DATASET_TO_FUNCTION.get(dataset)
-    if function is None:
+    if standardize_fn is None:
         print(
             f"Specified dataset {dataset} not in list of allowable options: {DATASET_TO_FUNCTION.keys()}"
         )
