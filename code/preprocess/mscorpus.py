@@ -4,7 +4,7 @@ import json
 import pprint
 
 
-def conv_rel_map(rel):
+def normalize_relation(rel):
     if rel in [
         "Property_Of",
         "Amount_Of",
@@ -68,7 +68,7 @@ def process_mscorpus_rels(ann_fname):
                         "arg2_end": ann_data[arg2_idx]["end"],
                         "arg2_word": ann_data[arg2_idx]["word"],
                         "arg2_label": ann_data[arg2_idx]["label"],
-                        "arg_label": conv_rel_map(arg2_lbl),
+                        "arg_label": normalize_relation(arg2_lbl),
                     }
                 )
 
@@ -96,14 +96,14 @@ def process_mscorpus_rels(ann_fname):
                     "arg2_end": ann_data[arg2_idx]["end"],
                     "arg2_word": ann_data[arg2_idx]["word"],
                     "arg2_label": ann_data[arg2_idx]["label"],
-                    "arg_label": conv_rel_map(arg_lbl),
+                    "arg_label": normalize_relation(arg_lbl),
                 }
             )
 
     return ann_data, rel_data
 
 
-def create_mscorpus():
+def standardize_mscorpus():
     """Standardize MSCorpus format"""
     data_dir = "/data/flow_graphs/MSPT/"
     data_dict = defaultdict(list)
