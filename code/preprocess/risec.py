@@ -3,35 +3,26 @@ from datetime import time
 from glob import glob
 import json
 
+SUBSTRING_TO_LABEL = {
+    "_PPT": "Arg_PPT",
+    "_GOL": "Arg_GOL",
+    "_DIR": "Arg_DIR",
+    "_PRD": "Arg_PRD",
+    "_PAG": "Arg_PAG",
+    "_MNR": "ArgM_MNR",
+    "_PRP": "ArgM_PRP",
+    "_LOC": "ArgM_LOC",
+    "_TMP": "ArgM_TMP",
+    "_MEANS": "ArgM_INT",
+    "Simultaneous": "ArgM_SIM",
+}
+
 
 def conv_rel_map(rel):
-    if "_PPT" in rel:
-        rel = "Arg_PPT"
-    elif "_GOL" in rel:
-        rel = "Arg_GOL"
-    elif "_DIR" in rel:
-        rel = "Arg_DIR"
-    elif "_PRD" in rel:
-        rel = "Arg_PRD"
-    elif "_PAG" in rel:
-        rel = "Arg_PAG"
-    elif "_MNR" in rel:
-        rel = "ArgM_MNR"
-    elif "_PRP" in rel:
-        rel = "ArgM_PRP"
-    elif "_LOC" in rel:
-        rel = "ArgM_LOC"
-    elif "_TMP" in rel:
-        rel = "ArgM_TMP"
-    elif "_MEANS" in rel:
-        rel = "ArgM_INT"
-    elif "Simultaneous" in rel:
-        rel = "ArgM_SIM"
-
-    else:
-        rel = None
-
-    return rel
+    for substring, label in SUBSTRING_TO_LABEL.items():
+        if substring in rel:
+            return label
+    return None
 
 
 def processes_rels(ann_fname):
@@ -92,7 +83,7 @@ def processes_rels(ann_fname):
     return ann_data, rel_data
 
 
-def create_risec():
+def standardize_risec():
     """Standardize the format of RISeC dataset"""
     data_dir = "/data/flow_graphs/COOKING/RISEC/data/"
     data_dict = defaultdict(list)
