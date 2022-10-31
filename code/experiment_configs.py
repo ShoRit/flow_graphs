@@ -1,8 +1,8 @@
 __all__ = ["model_configurations"]
 
 _base_config = {
-    "base_path": "/home/sgururaj/src/flow_graphs/",
-    "checkpoint_folder": "/home/sgururaj/src/flow_graphs/checkpoints",
+    "base_path": "/projects/flow_graphs/",
+    "checkpoint_folder": "/projects/flow_graphs/checkpoints",
     "bert_model": "bert-base-uncased",
     "node_emb_dim": 768,
     "gnn": "rgcn",
