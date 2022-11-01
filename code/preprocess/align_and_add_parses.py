@@ -443,13 +443,13 @@ def align_and_add_parses(dataset):
         "mscorpus": ["train", "dev", "test"],
     }[dataset]
 
-    dataset = create_datafield(
+    preprocessed_dataset = create_datafield(
         f"/home/sgururaj/src/flow_graphs/data/{dataset}",
         splits,
         bert_model="bert-base-uncased",
         text_tokenizer="scispacy",
     )
-    dump_dill(dataset, f"/projects/flow_graphs/data/{dataset}/data_amr.dill")
+    dump_dill(preprocessed_dataset, f"/projects/flow_graphs/data/{dataset}/data_amr.dill")
 
 
 if __name__ == "__main__":
