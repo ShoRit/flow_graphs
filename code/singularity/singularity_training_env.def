@@ -1,0 +1,12 @@
+Bootstrap: docker
+From: pytorch/pytorch:1.12.0-cuda11.3-cudnn8-devel
+
+%files
+    /map/requirements.txt /src/requirements.txt
+    /map/singularity_bootstrap.sh /src/singularity_bootstrap.sh
+
+%post
+    bash /src/singularity_bootstrap.sh
+
+%runscript
+    /bin/bash
