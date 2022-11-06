@@ -1,4 +1,6 @@
+from collections import defaultdict
 import random
+from typing import Union
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
@@ -86,6 +88,34 @@ class ZSBertRelDataset(Dataset):
         return (tokens, segments, marked_1, marked_2, desc_emb, label)
 
 
+def sample_fraction(dataset, fraction):
+    sampled_instances = random.sample(list(enumerate(dataset)), int(fraction * len(dataset)))
+
+    sampled_indices, sampled_dataset = zip(*sampled_instances)
+    return sampled_indices, sampled_dataset
+
+
+def stratified_sample(dataset, n_per_class):
+    instances_by_label = defaultdict(list)
+    for index, instance in enumerate(dataset):
+        instances_by_label[instance["label"]].append((index, instance))
+
+    all_sampled_instances = []
+    for label, instance_list in instances_by_label.items():
+        if n_per_class > len(instance_list):
+            print(
+                f"Requested more labels of class {label} ({n_per_class}) than exist ({len(instance_list)}). Using all examples."
+            )
+            all_sampled_instances.extend(instance_list)
+        else:
+            sampled_instances = random.sample(instance_list, n_per_class)
+            all_sampled_instances.extend(sampled_instances)
+
+    random.shuffle(all_sampled_instances)
+    sampled_indices, sampled_dataset = zip(*all_sampled_instances)
+    return sampled_indices, sampled_dataset
+
+
 class GraphyRelationsDataset(Dataset):
     def __init__(
         self,
@@ -93,19 +123,24 @@ class GraphyRelationsDataset(Dataset):
         rel2id: dict,
         graph_data_source: str,
         max_seq_len: int,
-        fewshot: float = 1.0,
+        fewshot: Union[float, int] = 1.0,
     ):
-        if fewshot == 1.0:
+        if isinstance(fewshot, float) and fewshot == 1.0:
             self.dataset = tuple(dataset)
-        else:
-            sampled_instances = random.sample(
-                list(enumerate(dataset)),
-                int(fewshot * len(dataset)),
-            )
-
-            sampled_indices, self.dataset = zip(*sampled_instances)
+        elif fewshot < 1.0:
+            sampled_indices, sampled_dataset = sample_fraction(dataset, fewshot)
+            self.dataset = sampled_dataset
             self.sampled_indices = tuple(sampled_indices)
             self.sampled_index_hash = hash(sampled_indices)
+        elif isinstance(fewshot, int):
+            sampled_indices, sampled_dataset = stratified_sample(dataset, n_per_class=fewshot)
+            self.dataset = sampled_dataset
+            self.sampled_indices = tuple(sampled_indices)
+            self.sampled_index_hash = hash(sampled_indices)
+        else:
+            raise AssertionError(
+                f"Unexpected value for parameter 'fewshot': {fewshot}. Parameter should be a float in the range (0, 1.0] or an int > 0"
+            )
 
         self.rel2id = rel2id
         self.max_seq_len = max_seq_len
@@ -146,13 +181,21 @@ class GraphyRelationsDataset(Dataset):
 
 
 def get_data_loaders(
-    train_data, dev_data, test_data, lbl2id, graph_data_source, max_seq_len, batch_size, fewshot=1.0
+    train_data,
+    dev_data,
+    test_data,
+    lbl2id,
+    graph_data_source,
+    max_seq_len,
+    batch_size,
+    fewshot=1.0,
+    shuffle_train=True,
 ):
     train_set = GraphyRelationsDataset(
         train_data, lbl2id, graph_data_source, max_seq_len, fewshot=fewshot
     )
     train_loader = DataLoader(
-        train_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=True
+        train_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=shuffle_train
     )
 
     dev_set = GraphyRelationsDataset(dev_data, lbl2id, graph_data_source, max_seq_len)

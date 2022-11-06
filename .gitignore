@@ -132,6 +132,7 @@ dmypy.json
 .vscode/
 .idea/
 wandb/
+slurm-*.out
 
 
 # Currently Ignore the NER module

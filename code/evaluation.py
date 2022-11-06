@@ -1,4 +1,7 @@
+from collections import defaultdict
+
 import numpy as np
+import pandas as pd
 from sklearn.metrics import precision_recall_fscore_support
 import torch
 from tqdm.auto import tqdm
@@ -47,3 +50,54 @@ def seen_eval(model, loader, device):
     y_true, y_pred = get_labels_and_model_predictions(model, loader, device)
     p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="macro")
     return p, r, f1
+
+
+def format_evaluation_df(df, tokenizer):
+    # n1_mask, n2_mask --> Do not have any entity
+    # Compute readability statistics
+    # Error analysis based on label_class and dataset, generate a confusion matrix
+    processed_dict = defaultdict(list)
+    for index, row in df.iterrows():
+        arg1_mask = torch.tensor(row["arg1_ids"]).type(torch.bool)
+        arg2_mask = torch.tensor(row["arg2_ids"]).type(torch.bool)
+        tokens = torch.tensor(row["tokens"])
+        tok_locs = torch.tensor(row["tok_range"])
+        ent1_locs = np.array(tok_locs[arg1_mask])
+        ent2_locs = np.array(tok_locs[arg2_mask])
+        ent1_start, ent1_end = ent1_locs[0][0], ent1_locs[-1][1]
+        ent2_start, ent2_end = ent2_locs[0][0], ent2_locs[-1][1]
+        ent1_name = tokenizer.decode(tokens[arg1_mask])
+        ent2_name = tokenizer.decode(tokens[arg2_mask])
+
+        processed_dict["ent1_name"].append(ent1_name)
+        processed_dict["ent2_name"].append(ent2_name)
+        processed_dict["ent1_start"].append(ent1_start)
+        processed_dict["ent2_start"].append(ent2_start)
+        processed_dict["ent1_end"].append(ent1_end)
+        processed_dict["ent2_end"].append(ent2_end)
+
+        processed_dict["ent1_amr"].append(row.amr_data.n1_mask.sum().item())
+        processed_dict["ent2_amr"].append(row.amr_data.n2_mask.sum().item())
+
+        processed_dict["sent"].append(row["sent"])
+        processed_dict["labels"].append(row["label"])
+        processed_dict["predictions"].append(row["predictions"])
+
+    processed_df = pd.DataFrame(processed_dict)
+    return processed_df
+
+
+def get_eval_df(model, data, dataloader, device, id2lbl, split_name):
+    eval_df = pd.DataFrame(data)
+
+    with torch.no_grad():
+        dev_labels, dev_predictions = get_labels_and_model_predictions(model, dataloader, device)
+        eval_df["label_idxs"] = dev_labels
+        eval_df["prediction_idxs"] = dev_predictions
+        eval_df["predictions"] = [id2lbl[pred] for pred in dev_predictions]
+        dp, dr, df1, _ = precision_recall_fscore_support(
+            dev_labels, dev_predictions, average="macro"
+        )
+        print(f"{split_name}\tF1: {df1}\tPrecision: {dp}\tRecall: {dr}")
+
+    return eval_df

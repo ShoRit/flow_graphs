@@ -1,100 +1,22 @@
-from collections import defaultdict as ddict
 import os
+from collections import defaultdict as ddict
 from typing import Optional
 
 import fire
-import pandas as pd
 import numpy as np
-from sklearn.metrics import precision_recall_fscore_support
+import pandas as pd
 import torch
-from transformers import AutoTokenizer, BertConfig
+from sklearn.metrics import precision_recall_fscore_support
+from transformers import AutoTokenizer
 
 from dataloader import get_data_loaders
-from dataloading_utils import load_dataset, load_deprels
-from evaluation import get_labels_and_model_predictions
+from dataloading_utils import load_dataset
+from evaluation import get_eval_df, format_evaluation_df, get_labels_and_model_predictions
 from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
-from modeling.metadata_utils import get_case, get_transfer_checkpoint_filename
+from modeling.metadata_utils import get_case, get_transfer_checkpoint_filename, load_model_from_file
 from utils import check_file, get_device
 
-
-def load_model_from_config(
-    configuration, src_dataset, tgt_dataset, case, fewshot, seed, n_labels, device
-):
-    model_checkpoint_file = os.path.join(
-        configuration["checkpoint_folder"],
-        get_transfer_checkpoint_filename(
-            **configuration,
-            src_dataset_name=src_dataset,
-            tgt_dataset_name=tgt_dataset,
-            case=case,
-            fewshot=fewshot,
-            seed=seed,
-        ),
-    )
-    check_file(model_checkpoint_file)
-
-    bertconfig = BertConfig.from_pretrained(configuration["bert_model"], num_labels=n_labels)
-    if "bert-large" in configuration["bert_model"]:
-        bertconfig.relation_emb_dim = 1024
-    elif "bert-base" in configuration["bert_model"]:
-        bertconfig.relation_emb_dim = 768
-
-    deprel_dict = load_deprels(
-        path=os.path.join(configuration["base_path"], "data", "enh_dep_rel.txt"), enhanced=False
-    )
-
-    bertconfig.node_emb_dim = configuration["node_emb_dim"]
-    bertconfig.dep_rels = len(deprel_dict)
-    bertconfig.gnn_depth = configuration["gnn_depth"]
-    bertconfig.gnn = configuration["gnn"]
-
-    use_graph_data = configuration["graph_data_source"] is not None
-    model_class = CONNECTION_TYPE_TO_CLASS[configuration["graph_connection_type"]]
-
-    model = model_class.from_pretrained(
-        configuration["bert_model"], config=bertconfig, use_graph_data=use_graph_data
-    )
-
-    model.load_state_dict(torch.load(model_checkpoint_file, map_location=device))
-    model.to(device)
-    return model
-
-
-def process_df(df, tokenizer):
-    
-    # n1_mask, n2_mask --> Do not have any entity
-    # Compute readability statistics
-    # Error analysis based on label_class and dataset, generate a confusion matrix
-    processed_dict = ddict(list)
-    for index, row in df.iterrows():
-        arg1_mask = torch.tensor(row['arg1_ids']).type(torch.bool)
-        arg2_mask = torch.tensor(row['arg2_ids']).type(torch.bool)
-        tokens    = torch.tensor(row['tokens'])
-        tok_locs  = torch.tensor(row['tok_range'])
-        ent1_locs = np.array(tok_locs[arg1_mask])
-        ent2_locs = np.array(tok_locs[arg2_mask])
-        ent1_start, ent1_end = ent1_locs[0][0], ent1_locs[-1][1]
-        ent2_start, ent2_end = ent2_locs[0][0], ent2_locs[-1][1]
-        ent1_name = tokenizer.decode(tokens[arg1_mask])
-        ent2_name = tokenizer.decode(tokens[arg2_mask])
-        
-        processed_dict['ent1_name'].append(ent1_name)
-        processed_dict['ent2_name'].append(ent2_name)
-        processed_dict['ent1_start'].append(ent1_start)
-        processed_dict['ent2_start'].append(ent2_start)
-        processed_dict['ent1_end'].append(ent1_end)
-        processed_dict['ent2_end'].append(ent2_end)
-        
-        processed_dict['ent1_amr'].append(row.amr_data.n1_mask.sum().item())
-        processed_dict['ent2_amr'].append(row.amr_data.n2_mask.sum().item())
-        
-        processed_dict['sent'].append(row['sent'])
-        processed_dict['labels'].append(row['label'])
-        processed_dict['predictions'].append(row['predictions'])
-
-    processed_df = pd.DataFrame(processed_dict)
-    return processed_df
 
 def evaluate_transfer_model(
     model, src_data, tgt_data, device, graph_data_source, max_seq_len, batch_size, **kwargs
@@ -122,30 +44,10 @@ def evaluate_transfer_model(
     model.eval()
     print("Evaluating model on dev set...")
 
-    dev_df = pd.DataFrame(dev_data)
-
-    with torch.no_grad():
-        dev_labels, dev_predictions = get_labels_and_model_predictions(model, dev_loader, device)
-        dev_df["label_idxs"] = dev_labels
-        dev_df["prediction_idxs"] = dev_predictions
-        dev_df["predictions"] = [id2lbl[pred] for pred in dev_predictions]
-        dp, dr, df1, _ = precision_recall_fscore_support(
-            dev_labels, dev_predictions, average="macro"
-        )
-        print(f"Dev\tF1: {df1}\tPrecision: {dp}\tRecall: {dr}")
+    dev_df = get_eval_df(model, dev_data, dev_loader, device, id2lbl, "Dev")
 
     print("Evaluating model on test set...")
-    test_df = pd.DataFrame(test_data)
-
-    with torch.no_grad():
-        test_labels, test_predictions = get_labels_and_model_predictions(model, test_loader, device)
-        test_df["label_idxs"] = test_labels
-        test_df["prediction_idxs"] = test_predictions
-        test_df["predictions"] = [id2lbl[pred] for pred in test_predictions]
-        tp, tr, tf1, _ = precision_recall_fscore_support(
-            test_labels, test_predictions, average="macro"
-        )
-        print(f"Test \tF1: {tf1}\tPrecision: {tp}\tRecall: {tr}")
+    test_df = get_eval_df(model, test_data, test_loader, device, id2lbl, "Test")
 
     return dev_df, test_df
 
@@ -161,7 +63,6 @@ def eval_transfer_model_wrapper(
     device = get_device(gpu)
     configuration = model_configurations[experiment_config]
     print("Loading data from disk...")
-    print("Loading data from disk...")
     src_dataset_loaded = load_dataset(configuration["base_path"], src_dataset)
     tgt_dataset_loaded = load_dataset(configuration["base_path"], tgt_dataset)
     print("Done loading data.")
@@ -171,13 +72,21 @@ def eval_transfer_model_wrapper(
     print("Loading model checkpoint")
     case = get_case(**configuration)
 
-    model = load_model_from_config(
+    model_checkpoint_file = os.path.join(
+        configuration["checkpoint_folder"],
+        get_transfer_checkpoint_filename(
+            **configuration,
+            src_dataset_name=src_dataset,
+            tgt_dataset_name=tgt_dataset,
+            case=case,
+            fewshot=fewshot,
+            seed=seed,
+        ),
+    )
+
+    model = load_model_from_file(
+        model_checkpoint_file,
         configuration,
-        src_dataset=src_dataset,
-        tgt_dataset=tgt_dataset,
-        fewshot=fewshot,
-        seed=seed,
-        case=case,
         device=device,
         n_labels=len(labels),
     )
@@ -190,16 +99,24 @@ def eval_transfer_model_wrapper(
         **configuration,
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(configuration['bert_model'])
-    
-    dev_df    = process_df(dev_df, tokenizer)
-    test_df   = process_df(test_df, tokenizer)
+    tokenizer = AutoTokenizer.from_pretrained(configuration["bert_model"])
+
+    dev_df = format_evaluation_df(dev_df, tokenizer)
+    test_df = format_evaluation_df(test_df, tokenizer)
 
     dev_df.to_csv(
-        os.path.join(configuration['base_path'],'results',f"transfer_results_dev_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.csv")
+        os.path.join(
+            configuration["base_path"],
+            "results",
+            f"transfer_results_dev_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.csv",
+        )
     )
     test_df.to_csv(
-        os.path.join(configuration['base_path'],'results',f"transfer_results_test_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.csv")
+        os.path.join(
+            configuration["base_path"],
+            "results",
+            f"transfer_results_test_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.csv",
+        )
     )
 
 
