@@ -133,3 +133,11 @@ dmypy.json
 .idea/
 wandb/
 
+
+# Currently Ignore the NER module
+ner/
+logs/
+results/
+figures/
+checkpoints/
+checkpoints_ypb/
