@@ -20,7 +20,7 @@ class PredEE(object):
 		self.id2gaz		= {v: k for k, v in self.gaz2id.items()}
 
 		
-		self.tokenizer  = BertTokenizerFast.from_pretrained(self.p.bert_dir)
+		self.tokenizer  = BertTokenizerFast.from_pretrained(self.p.bert_model)
 
 		if self.p.long != -1:
 			self.tokenizer.add_special_tokens({'additional_special_tokens': ["[LONG_TOKEN]"]})
@@ -703,7 +703,7 @@ if __name__== "__main__":
 	parser.add_argument('--batch_factor',   dest='batch_factor',	default=50,     type=int,      	help='Number of batches to generate at one time')
 	parser.add_argument('--num_workers',	type=int,		default=0,                   	help='Number of cores used for preprocessing data')
 	parser.add_argument('--opt',      	default='adam',             				help='Optimizer to use for training')
-	parser.add_argument('--lr', 	 	default=1e-3, 		type=float, 			help='The initial learning rate for Adam.')
+	parser.add_argument('--lr', 	 	default=1e-5, 		type=float, 			help='The initial learning rate for Adam.')
 	parser.add_argument('--l2', 	 	default=0.0, 		type=float, 			help='The initial learning rate for Adam.')
 	parser.add_argument('--drop', 	 	default=0.1, 		type=float, 			help='The initial learning rate for Adam.')
 

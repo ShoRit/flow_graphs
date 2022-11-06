@@ -7,7 +7,7 @@ class BertPlain(nn.Module):
 		super().__init__()
 		
 		self.p		= params
-		self.bert	= AutoModel.from_pretrained(self.p.bert_dir)
+		self.bert	= AutoModel.from_pretrained(self.p.bert_model)
 		self.dropout	= nn.Dropout(self.p.drop)
 
 		if self.p.crf: 
