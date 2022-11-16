@@ -435,7 +435,7 @@ def create_datafield(
     return data
 
 
-def align_and_add_parses(dataset):
+def align_and_add_parses_wrapper(dataset):
     splits = {
         "risec": ["train", "dev", "test"],
         "japflow": ["train", "test"],
@@ -444,13 +444,13 @@ def align_and_add_parses(dataset):
     }[dataset]
 
     preprocessed_dataset = create_datafield(
-        f"/home/sgururaj/src/flow_graphs/data/{dataset}",
+        f"../data/{dataset}",
         splits,
         bert_model="bert-base-uncased",
         text_tokenizer="scispacy",
     )
-    dump_dill(preprocessed_dataset, f"/projects/flow_graphs/data/{dataset}/data_amr.dill")
+    dump_dill(preprocessed_dataset, f"../data/{dataset}/data_amr.dill")
 
 
 if __name__ == "__main__":
-    fire.Fire(align_and_add_parses)
+    fire.Fire(align_and_add_parses_wrapper)

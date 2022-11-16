@@ -17,7 +17,7 @@ def load_glove(path="/data/glove_vector/glove.6B.100d.txt"):
     return glove_dict
 
 
-def load_deprels(path="/projects/flow_graphs/data/enh_dep_rel.txt", enhanced=False):
+def load_deprels(path="../data/enh_dep_rel.txt", enhanced=False):
     dep_dict = {}
     lines = open(path).readlines()
     for line in tqdm(lines):
@@ -37,7 +37,7 @@ def load_deprels(path="/projects/flow_graphs/data/enh_dep_rel.txt", enhanced=Fal
     return dep_dict
 
 
-def load_amr_rel2id(path="/projects/flow_graphs/data/amr_rel2id.json"):
+def load_amr_rel2id(path="../data/amr_rel2id.json"):
     with open(path) as f:
         return json.load(f)
 

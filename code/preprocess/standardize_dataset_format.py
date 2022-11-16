@@ -13,7 +13,7 @@ DATASET_TO_FUNCTION = {
 }
 
 
-def standardize_dataset_format(dataset):
+def standardize_dataset_format_wrapper(dataset):
     standardize_fn = DATASET_TO_FUNCTION.get(dataset)
     if standardize_fn is None:
         print(
@@ -25,4 +25,4 @@ def standardize_dataset_format(dataset):
 
 
 if __name__ == "__main__":
-    fire.Fire()
+    fire.Fire(standardize_dataset_format_wrapper)
