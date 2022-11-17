@@ -86,6 +86,7 @@ def train_model_in_domain(
     train_labels = [data["label"] for data in train_data]
     labels = sorted(list(set(train_labels)))
     lbl2id = {lbl: idx for idx, lbl in enumerate(labels)}
+    id2lbl = {idx: lbl for (lbl, idx) in lbl2id.items()}
 
     train_loader, dev_loader, test_loader = get_data_loaders(
         train_data,

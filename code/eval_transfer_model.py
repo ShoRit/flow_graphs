@@ -11,7 +11,7 @@ from transformers import AutoTokenizer
 
 from dataloader import get_data_loaders
 from dataloading_utils import load_dataset
-from evaluation import get_eval_df, format_evaluation_df, get_labels_and_model_predictions
+from evaluation import evaluate_model, add_evaluation_context, get_labels_and_model_predictions
 from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
 from modeling.metadata_utils import get_case, get_transfer_checkpoint_filename, load_model_from_file
@@ -44,10 +44,10 @@ def evaluate_transfer_model(
     model.eval()
     print("Evaluating model on dev set...")
 
-    dev_df = get_eval_df(model, dev_data, dev_loader, device, id2lbl, "Dev")
+    dev_df = evaluate_model(model, dev_data, dev_loader, device, id2lbl, "Dev")
 
     print("Evaluating model on test set...")
-    test_df = get_eval_df(model, test_data, test_loader, device, id2lbl, "Test")
+    test_df = evaluate_model(model, test_data, test_loader, device, id2lbl, "Test")
 
     return dev_df, test_df
 
@@ -101,8 +101,8 @@ def eval_transfer_model_wrapper(
 
     tokenizer = AutoTokenizer.from_pretrained(configuration["bert_model"])
 
-    dev_df = format_evaluation_df(dev_df, tokenizer)
-    test_df = format_evaluation_df(test_df, tokenizer)
+    dev_df = add_evaluation_context(dev_df, tokenizer)
+    test_df = add_evaluation_context(test_df, tokenizer)
 
     dev_df.to_csv(
         os.path.join(
