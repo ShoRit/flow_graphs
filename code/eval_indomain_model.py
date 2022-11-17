@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 
 import fire
@@ -6,13 +5,8 @@ from transformers import AutoTokenizer
 
 from dataloader import get_data_loaders
 from dataloading_utils import load_dataset
-from evaluation import (
-    add_evaluation_context,
-    evaluate_model_add_context,
-    get_indomain_eval_filename,
-)
+from evaluation import eval_model_add_context, save_indomain_eval_df
 from experiment_configs import model_configurations
-from modeling.bert import CONNECTION_TYPE_TO_CLASS
 from modeling.metadata_utils import (
     get_case,
     get_experiment_config_from_filename,
@@ -47,16 +41,36 @@ def evaluate_indomain_model(
 
     model.eval()
     print("Evaluating model on train set...")
-    _, _, _, train_df = evaluate_model_add_context(
-        model, train_data, train_loader, device, id2lbl, "Train"
+    _, _, _, train_df = eval_model_add_context(
+        model=model,
+        data=train_data,
+        dataloader=train_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="Train",
     )
 
     print("Evaluating model on dev set...")
-    _, _, _, dev_df = evaluate_model_add_context(model, dev_data, dev_loader, device, id2lbl, "Dev")
+    _, _, _, dev_df = eval_model_add_context(
+        model=model,
+        data=dev_data,
+        dataloader=dev_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="Dev",
+    )
 
     print("Evaluating model on test set...")
-    _, _, _, test_df = evaluate_model_add_context(
-        model, test_data, test_loader, device, id2lbl, "Test"
+    _, _, _, test_df = eval_model_add_context(
+        model=model,
+        data=test_data,
+        dataloader=test_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="Test",
     )
 
     return train_df, dev_df, test_df
@@ -79,51 +93,34 @@ def eval_indomain_model_wrapper(model_filename: str, gpu: Optional[int] = 0):
         model_filename, experiment_config, device=device, n_labels=len(labels)
     )
 
+    tokenizer = AutoTokenizer.from_pretrained(experiment_config["bert_model"])
     train_df, dev_df, test_df = evaluate_indomain_model(
         model, dataset_loaded, tokenizer, device, **experiment_config
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(experiment_config["bert_model"])
-
-    train_df = add_evaluation_context(train_df, tokenizer)
-    dev_df = add_evaluation_context(dev_df, tokenizer)
-    test_df = add_evaluation_context(test_df, tokenizer)
-
-    train_df.to_csv(
-        os.path.join(
-            experiment_config["base_path"],
-            "results",
-            get_indomain_eval_filename(
-                dataset_name=model_config["dataset_name"],
-                split="train",
-                seed=model_config["seed"],
-                case=case,
-            ),
-        )
+    save_indomain_eval_df(
+        train_df,
+        model_config["dataset_name"],
+        split="train",
+        seed=model_config["seed"],
+        case=case,
+        base_path=experiment_config["base_path"],
     )
-    dev_df.to_csv(
-        os.path.join(
-            experiment_config["base_path"],
-            "results",
-            get_indomain_eval_filename(
-                dataset_name=model_config["dataset_name"],
-                split="dev",
-                seed=model_config["seed"],
-                case=case,
-            ),
-        )
+    save_indomain_eval_df(
+        dev_df,
+        model_config["dataset_name"],
+        split="dev",
+        seed=model_config["seed"],
+        case=case,
+        base_path=experiment_config["base_path"],
     )
-    test_df.to_csv(
-        os.path.join(
-            experiment_config["base_path"],
-            "results",
-            get_indomain_eval_filename(
-                dataset_name=model_config["dataset_name"],
-                split="test",
-                seed=model_config["seed"],
-                case=case,
-            ),
-        )
+    save_indomain_eval_df(
+        test_df,
+        model_config["dataset_name"],
+        split="test",
+        seed=model_config["seed"],
+        case=case,
+        base_path=experiment_config["base_path"],
     )
 
 

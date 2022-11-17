@@ -1,27 +1,20 @@
 import os
-from collections import defaultdict as ddict
 from typing import Optional
 
 import fire
-import numpy as np
-import pandas as pd
-import torch
-from sklearn.metrics import precision_recall_fscore_support
 from transformers import AutoTokenizer
 
 from dataloader import get_data_loaders
 from dataloading_utils import load_dataset
-from evaluation import evaluate_model, add_evaluation_context, get_labels_and_model_predictions
+from evaluation import eval_model_add_context, save_transfer_eval_df
 from experiment_configs import model_configurations
-from modeling.bert import CONNECTION_TYPE_TO_CLASS
 from modeling.metadata_utils import get_case, get_transfer_checkpoint_filename, load_model_from_file
-from utils import check_file, get_device
+from utils import get_device
 
 
 def evaluate_transfer_model(
-    model, src_data, tgt_data, device, graph_data_source, max_seq_len, batch_size, **kwargs
+    model, tgt_data, tokenizer, device, graph_data_source, max_seq_len, batch_size, **kwargs
 ):
-    src_train_data = src_data["train"]["rels"]
     tgt_train_data = tgt_data["train"]["rels"]
     dev_data = tgt_data["dev"]["rels"]
     test_data = tgt_data["test"]["rels"]
@@ -31,7 +24,7 @@ def evaluate_transfer_model(
     lbl2id = {lbl: idx for idx, lbl in enumerate(labels)}
     id2lbl = {idx: lbl for (lbl, idx) in lbl2id.items()}
 
-    _, dev_loader, test_loader = get_data_loaders(
+    train_loader, dev_loader, test_loader = get_data_loaders(
         tgt_train_data,
         dev_data,
         test_data,
@@ -39,17 +32,44 @@ def evaluate_transfer_model(
         graph_data_source,
         max_seq_len,
         batch_size,
+        shuffle_train=False,
     )
 
     model.eval()
-    print("Evaluating model on dev set...")
 
-    dev_df = evaluate_model(model, dev_data, dev_loader, device, id2lbl, "Dev")
+    _, _, _, train_df = eval_model_add_context(
+        model=model,
+        data=tgt_train_data,
+        dataloader=train_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="Train",
+    )
+
+    print("Evaluating model on dev set...")
+    _, _, _, dev_df = eval_model_add_context(
+        model=model,
+        data=dev_data,
+        dataloader=dev_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="Dev",
+    )
 
     print("Evaluating model on test set...")
-    test_df = evaluate_model(model, test_data, test_loader, device, id2lbl, "Test")
+    _, _, _, test_df = eval_model_add_context(
+        model=model,
+        data=test_data,
+        dataloader=test_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="Test",
+    )
 
-    return dev_df, test_df
+    return train_df, dev_df, test_df
 
 
 def eval_transfer_model_wrapper(
@@ -63,7 +83,6 @@ def eval_transfer_model_wrapper(
     device = get_device(gpu)
     configuration = model_configurations[experiment_config]
     print("Loading data from disk...")
-    src_dataset_loaded = load_dataset(configuration["base_path"], src_dataset)
     tgt_dataset_loaded = load_dataset(configuration["base_path"], tgt_dataset)
     print("Done loading data.")
 
@@ -84,6 +103,7 @@ def eval_transfer_model_wrapper(
         ),
     )
 
+    tokenizer = AutoTokenizer.from_pretrained(configuration["bert_model"])
     model = load_model_from_file(
         model_checkpoint_file,
         configuration,
@@ -91,32 +111,22 @@ def eval_transfer_model_wrapper(
         n_labels=len(labels),
     )
 
-    dev_df, test_df = evaluate_transfer_model(
+    train_df, dev_df, test_df = evaluate_transfer_model(
         model=model,
-        src_data=src_dataset_loaded,
         tgt_data=tgt_dataset_loaded,
+        tokenizer=tokenizer,
         device=device,
         **configuration,
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(configuration["bert_model"])
-
-    dev_df = add_evaluation_context(dev_df, tokenizer)
-    test_df = add_evaluation_context(test_df, tokenizer)
-
-    dev_df.to_csv(
-        os.path.join(
-            configuration["base_path"],
-            "results",
-            f"transfer_results_dev_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.csv",
-        )
+    save_transfer_eval_df(
+        train_df, src_dataset, tgt_dataset, fewshot, "train", seed, case, configuration["base_path"]
     )
-    test_df.to_csv(
-        os.path.join(
-            configuration["base_path"],
-            "results",
-            f"transfer_results_test_{src_dataset}_{tgt_dataset}_{fewshot}_{seed}_{case}.csv",
-        )
+    save_transfer_eval_df(
+        dev_df, src_dataset, tgt_dataset, fewshot, "dev", seed, case, configuration["base_path"]
+    )
+    save_transfer_eval_df(
+        test_df, src_dataset, tgt_dataset, fewshot, "test", seed, case, configuration["base_path"]
     )
 
 
