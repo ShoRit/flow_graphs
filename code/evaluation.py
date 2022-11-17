@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 
 import numpy as np
@@ -109,3 +110,29 @@ def eval_model_add_context(model, data, dataloader, tokenizer, device, id2lbl, s
 
 def get_indomain_eval_filename(dataset_name, split, seed, case):
     return f"indomain-results-{split}-{dataset_name}-seed_{seed}-{case}.csv"
+
+
+def save_indomain_eval_df(df, dataset_name, split, seed, case, base_path):
+
+    filename = os.path.join(
+        base_path, "results", get_indomain_eval_filename(dataset_name, split, seed, case)
+    )
+
+    df.to_csv(filename, index=False)
+
+
+def get_transfer_eval_filename(src_dataset, tgt_dataset, fewshot, split, seed, case):
+    return (
+        f"transfer-results-dev-{src_dataset}-{tgt_dataset}-{split}-fewshot_{fewshot}-seed_{seed}"
+        f"_{case}.csv"
+    )
+
+
+def save_transfer_eval_df(df, src_dataset, tgt_dataset, fewshot, split, seed, case, base_path):
+    filename = os.path.join(
+        base_path,
+        "results",
+        get_transfer_eval_filename(src_dataset, tgt_dataset, fewshot, split, seed, case),
+    )
+
+    df.to_csv(filename, index=False)

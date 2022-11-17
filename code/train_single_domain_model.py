@@ -1,20 +1,20 @@
 import os
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import fire
 import torch
 from tqdm.auto import tqdm
-from transformers import BertConfig
-import wandb
+from transformers import AutoTokenizer, BertConfig
 
 from dataloader import get_data_loaders
-from dataloading_utils import load_deprels, load_dataset
-from evaluation import seen_eval
+from dataloading_utils import load_dataset, load_deprels
+from evaluation import eval_model_add_context, save_indomain_eval_df
 from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
 from modeling.metadata_utils import get_case, get_indomain_checkpoint_filename
-from utils import seed_everything, get_device
+from utils import get_device, seed_everything
 from validation import graph_data_not_equal, validate_graph_data_source
+import wandb
 
 
 def train_model_in_domain(
@@ -125,6 +125,7 @@ def train_model_in_domain(
 
     model_class = CONNECTION_TYPE_TO_CLASS[graph_connection_type]
 
+    tokenizer = AutoTokenizer.from_pretrained(bert_model)
     model = model_class.from_pretrained(
         bert_model, config=bertconfig, use_graph_data=use_graph_data
     )
@@ -160,7 +161,7 @@ def train_model_in_domain(
             else:
                 graph_data = None
 
-            # we don't currently need to load these, until we start using both AMRs and dependencies.
+            # we don't currently need to load these, until we start using both AMRs and dependencies
             # we do want to check that the correct graph data is being used, but can be ommitted
             # with python -o
             if __debug__:
@@ -202,11 +203,29 @@ def train_model_in_domain(
 
         print("============== EVALUATION ==============")
 
-        p_train, r_train, f1_train = seen_eval(model, train_loader, device=device)
+        # not getting train df, bc it will be shuffled and therefore useless
+        p_train, r_train, f1_train, _ = eval_model_add_context(
+            model=model,
+            data=train_data,
+            dataloader=train_loader,
+            tokenizer=tokenizer,
+            device=device,
+            id2lbl=id2lbl,
+            split_name="train",
+        )
+
         print(f"Train data F1: {f1_train} \t Precision: {p_train} \t Recall: {r_train}")
         wandb.log({"train_f1": f1_train})
 
-        p_dev, r_dev, f1_dev = seen_eval(model, dev_loader, device=device)
+        p_dev, r_dev, f1_dev, dev_eval_df = eval_model_add_context(
+            model=model,
+            data=dev_data,
+            dataloader=dev_loader,
+            tokenizer=tokenizer,
+            device=device,
+            id2lbl=id2lbl,
+            split_name="dev",
+        )
         wandb.log({"dev_f1": f1_dev})
         print(f"Eval data F1: {f1_dev} \t Precision: {p_dev} \t Recall: {r_dev}")
 
@@ -215,22 +234,35 @@ def train_model_in_domain(
 
             best_p, best_r, best_f1 = p_dev, r_dev, f1_dev
             best_model = model
+            best_dev_df = dev_eval_df
             torch.save(best_model.state_dict(), checkpoint_file)
         else:
             kill_cnt += 1
             if kill_cnt >= patience:
                 torch.save(best_model.state_dict(), checkpoint_file)
+                save_indomain_eval_df(best_dev_df, dataset_name, split, seed, case, base_path)
                 break
 
         wandb.log({"running_best_f1": best_f1})
         print(f"[best val] precision: {best_p:.4f}, recall: {best_r:.4f}, f1 score: {best_f1:.4f}")
     wandb.log({"best_f1": best_f1, "best_precision": best_p, "best_recall": best_r})
     torch.save(best_model.state_dict(), checkpoint_file)
+    save_indomain_eval_df(best_dev_df, dataset_name, split, seed, case, base_path)
 
     print("============== EVALUATION ON TEST DATA ==============")
     best_model.to(device)
     best_model.eval()
-    pt, rt, test_f1 = seen_eval(best_model, test_loader, device=device)
+    pt, rt, test_f1, test_eval_df = eval_model_add_context(
+        model=best_model,
+        data=test_data,
+        dataloader=test_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="test",
+    )
+
+    save_indomain_eval_df(test_eval_df, dataset_name, "test", seed, case, base_path)
     wandb.log({"test_f1": test_f1, "test_precision": pt, "test_recall": rt})
     wandb.run.finish()
 

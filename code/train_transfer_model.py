@@ -4,11 +4,13 @@ from typing import Dict, Optional, Union
 import fire
 import torch
 from tqdm.auto import tqdm
-from transformers import BertConfig
+from transformers import AutoTokenizer, BertConfig
+import wandb
+
 
 from dataloader import get_data_loaders
 from dataloading_utils import load_dataset, load_deprels
-from evaluation import seen_eval
+from evaluation import eval_model_add_context, save_transfer_eval_df
 from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
 from modeling.metadata_utils import (
@@ -18,7 +20,6 @@ from modeling.metadata_utils import (
 )
 from utils import get_device, seed_everything
 from validation import graph_data_not_equal, validate_graph_data_source
-import wandb
 
 
 def train_transfer_model(
@@ -105,6 +106,7 @@ def train_transfer_model(
     train_labels = [data["label"] for data in train_data]
     labels = sorted(list(set(train_labels)))
     lbl2id = {lbl: idx for idx, lbl in enumerate(labels)}
+    id2lbl = {idx: lbl for (lbl, idx) in lbl2id.items()}
 
     train_loader, dev_loader, test_loader = get_data_loaders(
         train_data,
@@ -147,6 +149,7 @@ def train_transfer_model(
     use_graph_data = graph_data_source is not None
     wandb.config.use_graph_data = use_graph_data
 
+    tokenizer = AutoTokenizer.from_pretrained(bert_model)
     model_class = CONNECTION_TYPE_TO_CLASS[graph_connection_type]
 
     src_model = model_class.from_pretrained(
@@ -240,11 +243,27 @@ def train_transfer_model(
 
         print("============== EVALUATION ==============")
 
-        p_train, r_train, f1_train = seen_eval(model, train_loader, device=device)
+        p_train, r_train, f1_train, _ = eval_model_add_context(
+            model=model,
+            data=train_data,
+            dataloader=train_loader,
+            tokenizer=tokenizer,
+            device=device,
+            id2lbl=id2lbl,
+            split_name="train",
+        )
         print(f"Train data F1: {f1_train} \t Precision: {p_train} \t Recall: {r_train}")
         wandb.log({"train_f1": f1_train})
 
-        p_dev, r_dev, f1_dev = seen_eval(model, dev_loader, device=device)
+        p_dev, r_dev, f1_dev, dev_eval_df = eval_model_add_context(
+            model=model,
+            data=dev_data,
+            dataloader=dev_loader,
+            tokenizer=tokenizer,
+            device=device,
+            id2lbl=id2lbl,
+            split_name="dev",
+        )
         wandb.log({"dev_f1": f1_dev})
         print(f"Eval data F1: {f1_dev} \t Precision: {p_dev} \t Recall: {r_dev}")
 
@@ -253,22 +272,47 @@ def train_transfer_model(
 
             best_p, best_r, best_f1 = p_dev, r_dev, f1_dev
             best_model = model
+            best_eval_df = dev_eval_df
             torch.save(best_model.state_dict(), tgt_checkpoint_file)
         else:
             kill_cnt += 1
             if kill_cnt >= patience:
                 torch.save(best_model.state_dict(), tgt_checkpoint_file)
+                save_transfer_eval_df(
+                    best_eval_df,
+                    src_dataset_name,
+                    tgt_dataset_name,
+                    fewshot,
+                    "dev",
+                    seed,
+                    case,
+                    base_path,
+                )
                 break
 
         wandb.log({"running_best_f1": best_f1})
         print(f"[best val] precision: {best_p:.4f}, recall: {best_r:.4f}, f1 score: {best_f1:.4f}")
     wandb.log({"best_f1": best_f1, "best_precision": best_p, "best_recall": best_r})
     torch.save(best_model.state_dict(), tgt_checkpoint_file)
+    save_transfer_eval_df(
+        best_eval_df, src_dataset_name, tgt_dataset_name, fewshot, "dev", seed, case, base_path
+    )
 
     print("============== EVALUATION ON TEST DATA ==============")
     best_model.to(device)
     best_model.eval()
-    pt, rt, test_f1 = seen_eval(best_model, test_loader, device=device)
+    pt, rt, test_f1, test_eval_df = eval_model_add_context(
+        model=best_model,
+        data=test_data,
+        dataloader=test_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="test",
+    )
+    save_transfer_eval_df(
+        test_eval_df, src_dataset_name, tgt_dataset_name, fewshot, "test", seed, case, base_path
+    )
     wandb.log({"test_f1": test_f1, "test_precision": pt, "test_recall": rt})
     wandb.run.finish()
 
