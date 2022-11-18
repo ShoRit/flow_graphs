@@ -140,5 +140,4 @@ ner/
 logs/
 results/
 figures/
-checkpoints/
 checkpoints_ypb/

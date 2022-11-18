@@ -10,7 +10,7 @@ import wandb
 
 from dataloader import get_data_loaders
 from dataloading_utils import load_dataset, load_deprels
-from evaluation import eval_model_add_context, save_transfer_eval_df
+from evaluation import eval_model_add_context, save_transfer_eval_df, seen_eval
 from experiment_configs import model_configurations
 from modeling.bert import CONNECTION_TYPE_TO_CLASS
 from modeling.metadata_utils import (
@@ -245,13 +245,18 @@ def train_transfer_model(
 
         p_train, r_train, f1_train, _ = eval_model_add_context(
             model=model,
-            data=train_data,
+            data=[
+                data
+                for (i, data) in enumerate(train_data)
+                if i in train_loader.dataset.sampled_indices
+            ],
             dataloader=train_loader,
             tokenizer=tokenizer,
             device=device,
             id2lbl=id2lbl,
             split_name="train",
         )
+
         print(f"Train data F1: {f1_train} \t Precision: {p_train} \t Recall: {r_train}")
         wandb.log({"train_f1": f1_train})
 
@@ -291,7 +296,7 @@ def train_transfer_model(
                 break
 
         wandb.log({"running_best_f1": best_f1})
-        print(f"[best val] precision: {best_p:.4f}, recall: {best_r:.4f}, f1 score: {best_f1:.4f}")
+        print(f"[best val]  F1: {best_f1:.4f} Precision: {best_p:.4f}, Recall: {best_r:.4f}")
     wandb.log({"best_f1": best_f1, "best_precision": best_p, "best_recall": best_r})
     torch.save(best_model.state_dict(), tgt_checkpoint_file)
     save_transfer_eval_df(
