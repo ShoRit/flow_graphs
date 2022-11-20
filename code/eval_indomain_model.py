@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 
 import fire
@@ -6,9 +5,8 @@ from transformers import AutoTokenizer
 
 from dataloader import get_data_loaders
 from dataloading_utils import load_dataset
-from evaluation import format_evaluation_df, get_eval_df
+from evaluation import eval_model_add_context, save_indomain_eval_df
 from experiment_configs import model_configurations
-from modeling.bert import CONNECTION_TYPE_TO_CLASS
 from modeling.metadata_utils import (
     get_case,
     get_experiment_config_from_filename,
@@ -19,7 +17,7 @@ from utils import get_device
 
 
 def evaluate_indomain_model(
-    model, data, device, graph_data_source, max_seq_len, batch_size, **kwargs
+    model, data, tokenizer, device, graph_data_source, max_seq_len, batch_size, **kwargs
 ):
     train_data = data["train"]["rels"]
     dev_data = data["dev"]["rels"]
@@ -43,13 +41,37 @@ def evaluate_indomain_model(
 
     model.eval()
     print("Evaluating model on train set...")
-    train_df = get_eval_df(model, train_data, train_loader, device, id2lbl, "Train")
+    _, _, _, train_df = eval_model_add_context(
+        model=model,
+        data=train_data,
+        dataloader=train_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="Train",
+    )
 
     print("Evaluating model on dev set...")
-    dev_df = get_eval_df(model, dev_data, dev_loader, device, id2lbl, "Dev")
+    _, _, _, dev_df = eval_model_add_context(
+        model=model,
+        data=dev_data,
+        dataloader=dev_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="Dev",
+    )
 
     print("Evaluating model on test set...")
-    test_df = get_eval_df(model, test_data, test_loader, device, id2lbl, "Test")
+    _, _, _, test_df = eval_model_add_context(
+        model=model,
+        data=test_data,
+        dataloader=test_loader,
+        tokenizer=tokenizer,
+        device=device,
+        id2lbl=id2lbl,
+        split_name="Test",
+    )
 
     return train_df, dev_df, test_df
 
@@ -71,36 +93,34 @@ def eval_indomain_model_wrapper(model_filename: str, gpu: Optional[int] = 0):
         model_filename, experiment_config, device=device, n_labels=len(labels)
     )
 
-    train_df, dev_df, test_df = evaluate_indomain_model(
-        model, dataset_loaded, device, **experiment_config
-    )
-
     tokenizer = AutoTokenizer.from_pretrained(experiment_config["bert_model"])
-
-    train_df = format_evaluation_df(train_df, tokenizer)
-    dev_df = format_evaluation_df(dev_df, tokenizer)
-    test_df = format_evaluation_df(test_df, tokenizer)
-
-    train_df.to_csv(
-        os.path.join(
-            experiment_config["base_path"],
-            "results",
-            f"indomain_results_train_{model_config['dataset_name']}_seed-{model_config['seed']}_{case}.csv",
-        )
+    train_df, dev_df, test_df = evaluate_indomain_model(
+        model, dataset_loaded, tokenizer, device, **experiment_config
     )
-    dev_df.to_csv(
-        os.path.join(
-            experiment_config["base_path"],
-            "results",
-            f"indomain_results_dev_{model_config['dataset_name']}_seed-{model_config['seed']}_{case}.csv",
-        )
+
+    save_indomain_eval_df(
+        train_df,
+        model_config["dataset_name"],
+        split="train",
+        seed=model_config["seed"],
+        case=case,
+        base_path=experiment_config["base_path"],
     )
-    test_df.to_csv(
-        os.path.join(
-            experiment_config["base_path"],
-            "results",
-            f"indomain_results_test_{model_config['dataset_name']}_seed-{model_config['seed']}_{case}.csv",
-        )
+    save_indomain_eval_df(
+        dev_df,
+        model_config["dataset_name"],
+        split="dev",
+        seed=model_config["seed"],
+        case=case,
+        base_path=experiment_config["base_path"],
+    )
+    save_indomain_eval_df(
+        test_df,
+        model_config["dataset_name"],
+        split="test",
+        seed=model_config["seed"],
+        case=case,
+        base_path=experiment_config["base_path"],
     )
 
 
