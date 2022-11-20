@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 
 import numpy as np
@@ -45,14 +46,7 @@ def get_labels_and_model_predictions(model, loader, device):
     return y_true, y_pred
 
 
-def seen_eval(model, loader, device):
-    model.eval()
-    y_true, y_pred = get_labels_and_model_predictions(model, loader, device)
-    p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="macro")
-    return p, r, f1
-
-
-def format_evaluation_df(df, tokenizer):
+def add_evaluation_context(df, tokenizer):
     # n1_mask, n2_mask --> Do not have any entity
     # Compute readability statistics
     # Error analysis based on label_class and dataset, generate a confusion matrix
@@ -87,17 +81,58 @@ def format_evaluation_df(df, tokenizer):
     return processed_df
 
 
-def get_eval_df(model, data, dataloader, device, id2lbl, split_name):
+def seen_eval(model, loader, device):
+    model.eval()
+    y_true, y_pred = get_labels_and_model_predictions(model, loader, device)
+    p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="macro")
+    return p, r, f1
+
+
+def evaluate_model(model, data, dataloader, device, id2lbl, split_name):
     eval_df = pd.DataFrame(data)
 
     with torch.no_grad():
-        dev_labels, dev_predictions = get_labels_and_model_predictions(model, dataloader, device)
-        eval_df["label_idxs"] = dev_labels
-        eval_df["prediction_idxs"] = dev_predictions
-        eval_df["predictions"] = [id2lbl[pred] for pred in dev_predictions]
-        dp, dr, df1, _ = precision_recall_fscore_support(
-            dev_labels, dev_predictions, average="macro"
-        )
-        print(f"{split_name}\tF1: {df1}\tPrecision: {dp}\tRecall: {dr}")
+        labels, predictions = get_labels_and_model_predictions(model, dataloader, device)
+        eval_df["label_idxs"] = labels
+        eval_df["prediction_idxs"] = predictions
+        eval_df["predictions"] = [id2lbl[pred] for pred in predictions]
+        p, r, f1, _ = precision_recall_fscore_support(labels, predictions, average="macro")
+        print(f"{split_name}\tF1: {f1}\tPrecision: {p}\tRecall: {r}")
 
-    return eval_df
+    return p, r, f1, eval_df
+
+
+def eval_model_add_context(model, data, dataloader, tokenizer, device, id2lbl, split_name):
+    p, r, f1, eval_df = evaluate_model(model, data, dataloader, device, id2lbl, split_name)
+    contextualized_df = add_evaluation_context(eval_df, tokenizer)
+    return p, r, f1, contextualized_df
+
+
+def get_indomain_eval_filename(dataset_name, split, seed, case):
+    return f"indomain-results-{split}-{dataset_name}-seed_{seed}-{case}.csv"
+
+
+def save_indomain_eval_df(df, dataset_name, split, seed, case, base_path):
+
+    filename = os.path.join(
+        base_path, "results", get_indomain_eval_filename(dataset_name, split, seed, case)
+    )
+
+    df.to_csv(filename, index=False)
+
+
+def get_transfer_eval_filename(src_dataset, tgt_dataset, fewshot, split, seed, case):
+    return (
+        f"transfer-results-dev-{src_dataset}-{tgt_dataset}-{split}-fewshot_{fewshot}-seed_{seed}"
+        f"_{case}.csv"
+    )
+
+
+def save_transfer_eval_df(df, src_dataset, tgt_dataset, fewshot, split, seed, case, base_path):
+    filename = os.path.join(
+        base_path,
+        "results",
+        get_transfer_eval_filename(src_dataset, tgt_dataset, fewshot, split, seed, case),
+    )
+
+    df.to_csv(filename, index=False)
