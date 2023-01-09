@@ -8,7 +8,7 @@ parameters:
   src_dataset:
     values: ["mscorpus"]
   tgt_dataset:
-    values: ["japflow"]
+    values: ["risec"]
   experiment_config:
     values: ["baseline", "amr_residual", "dep_residual"]
 command:
