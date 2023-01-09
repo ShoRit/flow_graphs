@@ -121,18 +121,22 @@ def save_indomain_eval_df(df, dataset_name, split, seed, case, base_path):
     df.to_csv(filename, index=False)
 
 
-def get_transfer_eval_filename(src_dataset, tgt_dataset, fewshot, split, seed, case):
+def get_transfer_eval_filename(src_dataset, tgt_dataset, fewshot, split, seed, case, ablation=None):
     return (
         f"transfer-results-dev-{src_dataset}-{tgt_dataset}-{split}-fewshot_{fewshot}-seed_{seed}"
-        f"_{case}.csv"
+        f"_{case}{'_'+ablation if ablation is not None else ''}.csv"
     )
 
 
-def save_transfer_eval_df(df, src_dataset, tgt_dataset, fewshot, split, seed, case, base_path):
+def save_transfer_eval_df(
+    df, src_dataset, tgt_dataset, fewshot, split, seed, case, base_path, ablation=None
+):
     filename = os.path.join(
         base_path,
         "results",
-        get_transfer_eval_filename(src_dataset, tgt_dataset, fewshot, split, seed, case),
+        get_transfer_eval_filename(
+            src_dataset, tgt_dataset, fewshot, split, seed, case, ablation
+        ),
     )
 
     df.to_csv(filename, index=False)

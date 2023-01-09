@@ -10,10 +10,19 @@ from evaluation import eval_model_add_context, save_transfer_eval_df
 from experiment_configs import model_configurations
 from modeling.metadata_utils import get_case, get_transfer_checkpoint_filename, load_model_from_file
 from utils import get_device
+from validation import ABLATIONS
 
 
 def evaluate_transfer_model(
-    model, tgt_data, tokenizer, device, graph_data_source, max_seq_len, batch_size, **kwargs
+    model,
+    tgt_data,
+    tokenizer,
+    device,
+    graph_data_source,
+    max_seq_len,
+    batch_size,
+    ablation=None,
+    **kwargs,
 ):
     tgt_train_data = tgt_data["train"]["rels"]
     dev_data = tgt_data["dev"]["rels"]
@@ -33,6 +42,7 @@ def evaluate_transfer_model(
         max_seq_len,
         batch_size,
         shuffle_train=False,
+        ablation=ablation,
     )
 
     model.eval()
@@ -78,10 +88,17 @@ def eval_transfer_model_wrapper(
     fewshot: float,
     seed: int,
     experiment_config: str,
+    ablation: str = None,
     gpu: Optional[int] = 0,
 ):
     device = get_device(gpu)
     configuration = model_configurations[experiment_config]
+
+    if ablation is not None and ablation not in ABLATIONS:
+        raise AssertionError(
+            f"Specified ablation not in allowed list. Provided: {ablation}; allowed: {ABLATIONS}"
+        )
+
     print("Loading data from disk...")
     tgt_dataset_loaded = load_dataset(configuration["base_path"], tgt_dataset)
     print("Done loading data.")
@@ -115,6 +132,7 @@ def eval_transfer_model_wrapper(
         model=model,
         tgt_data=tgt_dataset_loaded,
         tokenizer=tokenizer,
+        ablation=ablation,
         device=device,
         **configuration,
     )
@@ -123,10 +141,26 @@ def eval_transfer_model_wrapper(
         train_df, src_dataset, tgt_dataset, fewshot, "train", seed, case, configuration["base_path"]
     )
     save_transfer_eval_df(
-        dev_df, src_dataset, tgt_dataset, fewshot, "dev", seed, case, configuration["base_path"]
+        dev_df,
+        src_dataset,
+        tgt_dataset,
+        fewshot,
+        "dev",
+        seed,
+        case,
+        configuration["base_path"],
+        ablation,
     )
     save_transfer_eval_df(
-        test_df, src_dataset, tgt_dataset, fewshot, "test", seed, case, configuration["base_path"]
+        test_df,
+        src_dataset,
+        tgt_dataset,
+        fewshot,
+        "test",
+        seed,
+        case,
+        configuration["base_path"],
+        ablation,
     )
 
 

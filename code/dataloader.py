@@ -5,9 +5,10 @@ from typing import Union
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset, DataLoader
+from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader as geo_DataLoader
 
-from validation import GRAPH_DATA_KEYS
+from validation import ABLATIONS, GRAPH_DATA_KEYS
 
 
 def create_mini_batch(samples):
@@ -116,6 +117,57 @@ def stratified_sample(dataset, n_per_class):
     return sampled_indices, sampled_dataset
 
 
+def corrupt_graph(graph_data):
+    node_list = list(range(len(graph_data.x)))
+    n_edges = graph_data.edge_index.shape[1]
+    connected_nodes = []
+
+    new_edges = []
+
+    for n in range(n_edges):
+
+        if node_list:
+            unconnected_node = node_list.pop()
+        else:
+            unconnected_node = random.choice(connected_nodes)
+
+        if connected_nodes:
+            connected_node = random.choice(connected_nodes)
+        else:
+            connected_node = node_list.pop()
+            connected_nodes.append(connected_node)
+
+        new_edge = (
+            (unconnected_node, connected_node)
+            if random.random() > 0.5
+            else (connected_node, unconnected_node)
+        )
+        new_edges.append(new_edge)
+        connected_nodes.append(unconnected_node)
+    new_edge_index = torch.tensor(new_edges).T
+    new_graph_data = Data(
+        x=graph_data.x,
+        edge_index=new_edge_index,
+        edge_type=graph_data.edge_type,
+        n1_mask=graph_data.n1_mask,
+        n2_mask=graph_data.n2_mask,
+    )
+    assert new_graph_data.keys == graph_data.keys
+    return new_graph_data
+
+
+def remove_edge_types(graph_data, edge_type_all=1):
+    new_edge_types = torch.ones_like(graph_data.edge_type) * edge_type_all
+    new_graph_data = Data(
+        x=graph_data.x,
+        edge_index=graph_data.edge_index,
+        edge_type=new_edge_types,
+        n1_mask=graph_data.n1_mask,
+        n2_mask=graph_data.n2_mask,
+    )
+    assert new_graph_data.keys == graph_data.keys
+
+
 class GraphyRelationsDataset(Dataset):
     def __init__(
         self,
@@ -124,6 +176,8 @@ class GraphyRelationsDataset(Dataset):
         graph_data_source: str,
         max_seq_len: int,
         fewshot: Union[float, int] = 1.0,
+        corrupt_graph_structure=False,  # for ablation analysis
+        remove_edge_types=False,  # for ablation analysis
     ):
         if isinstance(fewshot, float) and fewshot == 1.0:
             self.dataset = tuple(dataset)
@@ -145,6 +199,18 @@ class GraphyRelationsDataset(Dataset):
         self.rel2id = rel2id
         self.max_seq_len = max_seq_len
         self.graph_data_key = GRAPH_DATA_KEYS[graph_data_source]
+
+        if corrupt_graph_structure and remove_edge_types:
+            raise AssertionError(
+                "Both graph structure corruption and edge type removal are enabled! Use one ablation at a time."
+            )
+        elif corrupt_graph:
+            print("Ablation enabled: corrupting graph structure!")
+        elif remove_edge_types:
+            print("Ablation enabled: removing edge types!")
+
+        self.corrupt_graph_structure = corrupt_graph_structure
+        self.remove_edge_types = remove_edge_types
 
     def __len__(self):
         return len(self.dataset)
@@ -168,6 +234,19 @@ class GraphyRelationsDataset(Dataset):
         else:
             graph_data = None
 
+        dep_data = instance["dep_data"]
+        amr_data = instance["amr_data"]
+
+        if self.corrupt_graph_structure:
+            graph_data = corrupt_graph(graph_data)
+            dep_data = corrupt_graph(dep_data)
+            amr_data = corrupt_graph(amr_data)
+
+        if self.remove_edge_types:
+            graph_data = remove_edge_types(graph_data)
+            dep_data = remove_edge_types(dep_data)
+            amr_data = remove_edge_types(amr_data)
+
         return {
             "tokens": tokens,
             "segments": segments,
@@ -175,8 +254,8 @@ class GraphyRelationsDataset(Dataset):
             "e2_mask": e2_mask,
             "label": torch.tensor(self.rel2id[instance["label"]]),
             "graph_data": graph_data,
-            "dep_data": instance["dep_data"],
-            "amr_data": instance["amr_data"],
+            "dep_data": dep_data,
+            "amr_data": amr_data,
         }
 
 
@@ -190,7 +269,10 @@ def get_data_loaders(
     batch_size,
     fewshot=1.0,
     shuffle_train=True,
+    ablation=None,
 ):
+    ablation_params = ABLATIONS[ablation]
+
     train_set = GraphyRelationsDataset(
         train_data, lbl2id, graph_data_source, max_seq_len, fewshot=fewshot
     )
@@ -200,12 +282,20 @@ def get_data_loaders(
 
     dev_set = GraphyRelationsDataset(dev_data, lbl2id, graph_data_source, max_seq_len)
     dev_loader = DataLoader(
-        dev_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=False
+        dev_set,
+        batch_size=batch_size,
+        collate_fn=create_mini_batch,
+        shuffle=False,
+        **ablation_params,
     )
 
     test_set = GraphyRelationsDataset(test_data, lbl2id, graph_data_source, max_seq_len)
     test_loader = DataLoader(
-        test_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=False
+        test_set,
+        batch_size=batch_size,
+        collate_fn=create_mini_batch,
+        shuffle=False,
+        **ablation_params,
     )
 
     return train_loader, dev_loader, test_loader
