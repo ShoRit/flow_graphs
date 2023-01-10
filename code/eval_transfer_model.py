@@ -48,7 +48,7 @@ def evaluate_transfer_model(
     model.eval()
 
     print("Evaluating model on dev set...")
-    _, _, _, dev_df = eval_model_add_context(
+    dev_p, dev_r, dev_f1, dev_df = eval_model_add_context(
         model=model,
         data=dev_data,
         dataloader=dev_loader,
@@ -59,7 +59,7 @@ def evaluate_transfer_model(
     )
 
     print("Evaluating model on test set...")
-    _, _, _, test_df = eval_model_add_context(
+    test_p, test_r, test_f1, test_df = eval_model_add_context(
         model=model,
         data=test_data,
         dataloader=test_loader,
@@ -69,7 +69,16 @@ def evaluate_transfer_model(
         split_name="Test",
     )
 
-    return dev_df, test_df
+    metric_summary = {
+        "dev_precision": dev_p,
+        "dev_recall": dev_r,
+        "dev_f1": dev_f1,
+        "test_precision": test_p,
+        "test_recall": test_r,
+        "test_f1": test_f1,
+    }
+
+    return dev_df, test_df, metric_summary
 
 
 def eval_transfer_model_wrapper(
@@ -118,7 +127,7 @@ def eval_transfer_model_wrapper(
         n_labels=len(labels),
     )
 
-    dev_df, test_df = evaluate_transfer_model(
+    dev_df, test_df, _ = evaluate_transfer_model(
         model=model,
         tgt_data=tgt_dataset_loaded,
         tokenizer=tokenizer,
