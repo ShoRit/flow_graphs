@@ -117,12 +117,15 @@ def stratified_sample(dataset, n_per_class):
     return sampled_indices, sampled_dataset
 
 
-def corrupt_graph(graph_data):
+def corrupt_graph_ablation(graph_data):
     node_list = list(range(len(graph_data.x)))
     n_edges = graph_data.edge_index.shape[1]
     connected_nodes = []
 
     new_edges = []
+
+    if n_edges == 0:
+        return graph_data
 
     for n in range(n_edges):
 
@@ -156,7 +159,7 @@ def corrupt_graph(graph_data):
     return new_graph_data
 
 
-def remove_edge_types(graph_data, edge_type_all=1):
+def remove_edge_types_ablation(graph_data, edge_type_all=1):
     new_edge_types = torch.ones_like(graph_data.edge_type) * edge_type_all
     new_graph_data = Data(
         x=graph_data.x,
@@ -166,6 +169,7 @@ def remove_edge_types(graph_data, edge_type_all=1):
         n2_mask=graph_data.n2_mask,
     )
     assert new_graph_data.keys == graph_data.keys
+    return new_graph_data
 
 
 class GraphyRelationsDataset(Dataset):
@@ -204,7 +208,7 @@ class GraphyRelationsDataset(Dataset):
             raise AssertionError(
                 "Both graph structure corruption and edge type removal are enabled! Use one ablation at a time."
             )
-        elif corrupt_graph:
+        elif corrupt_graph_structure:
             print("Ablation enabled: corrupting graph structure!")
         elif remove_edge_types:
             print("Ablation enabled: removing edge types!")
@@ -238,14 +242,14 @@ class GraphyRelationsDataset(Dataset):
         amr_data = instance["amr_data"]
 
         if self.corrupt_graph_structure:
-            graph_data = corrupt_graph(graph_data)
-            dep_data = corrupt_graph(dep_data)
-            amr_data = corrupt_graph(amr_data)
+            graph_data = corrupt_graph_ablation(graph_data)
+            dep_data = corrupt_graph_ablation(dep_data)
+            amr_data = corrupt_graph_ablation(amr_data)
 
         if self.remove_edge_types:
-            graph_data = remove_edge_types(graph_data)
-            dep_data = remove_edge_types(dep_data)
-            amr_data = remove_edge_types(amr_data)
+            graph_data = remove_edge_types_ablation(graph_data)
+            dep_data = remove_edge_types_ablation(dep_data)
+            amr_data = remove_edge_types_ablation(amr_data)
 
         return {
             "tokens": tokens,
@@ -280,22 +284,28 @@ def get_data_loaders(
         train_set, batch_size=batch_size, collate_fn=create_mini_batch, shuffle=shuffle_train
     )
 
-    dev_set = GraphyRelationsDataset(dev_data, lbl2id, graph_data_source, max_seq_len)
+    dev_set = GraphyRelationsDataset(
+        dev_data,
+        lbl2id,
+        graph_data_source,
+        max_seq_len,
+        **ablation_params,
+    )
     dev_loader = DataLoader(
         dev_set,
         batch_size=batch_size,
         collate_fn=create_mini_batch,
         shuffle=False,
-        **ablation_params,
     )
 
-    test_set = GraphyRelationsDataset(test_data, lbl2id, graph_data_source, max_seq_len)
+    test_set = GraphyRelationsDataset(
+        test_data, lbl2id, graph_data_source, max_seq_len, **ablation_params
+    )
     test_loader = DataLoader(
         test_set,
         batch_size=batch_size,
         collate_fn=create_mini_batch,
         shuffle=False,
-        **ablation_params,
     )
 
     return train_loader, dev_loader, test_loader

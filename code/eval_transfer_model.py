@@ -33,7 +33,7 @@ def evaluate_transfer_model(
     lbl2id = {lbl: idx for idx, lbl in enumerate(labels)}
     id2lbl = {idx: lbl for (lbl, idx) in lbl2id.items()}
 
-    train_loader, dev_loader, test_loader = get_data_loaders(
+    _, dev_loader, test_loader = get_data_loaders(
         tgt_train_data,
         dev_data,
         test_data,
@@ -46,16 +46,6 @@ def evaluate_transfer_model(
     )
 
     model.eval()
-
-    _, _, _, train_df = eval_model_add_context(
-        model=model,
-        data=tgt_train_data,
-        dataloader=train_loader,
-        tokenizer=tokenizer,
-        device=device,
-        id2lbl=id2lbl,
-        split_name="Train",
-    )
 
     print("Evaluating model on dev set...")
     _, _, _, dev_df = eval_model_add_context(
@@ -79,7 +69,7 @@ def evaluate_transfer_model(
         split_name="Test",
     )
 
-    return train_df, dev_df, test_df
+    return dev_df, test_df
 
 
 def eval_transfer_model_wrapper(
@@ -94,7 +84,7 @@ def eval_transfer_model_wrapper(
     device = get_device(gpu)
     configuration = model_configurations[experiment_config]
 
-    if ablation is not None and ablation not in ABLATIONS:
+    if ablation not in ABLATIONS:
         raise AssertionError(
             f"Specified ablation not in allowed list. Provided: {ablation}; allowed: {ABLATIONS}"
         )
@@ -128,7 +118,7 @@ def eval_transfer_model_wrapper(
         n_labels=len(labels),
     )
 
-    train_df, dev_df, test_df = evaluate_transfer_model(
+    dev_df, test_df = evaluate_transfer_model(
         model=model,
         tgt_data=tgt_dataset_loaded,
         tokenizer=tokenizer,
@@ -137,9 +127,6 @@ def eval_transfer_model_wrapper(
         **configuration,
     )
 
-    save_transfer_eval_df(
-        train_df, src_dataset, tgt_dataset, fewshot, "train", seed, case, configuration["base_path"]
-    )
     save_transfer_eval_df(
         dev_df,
         src_dataset,
