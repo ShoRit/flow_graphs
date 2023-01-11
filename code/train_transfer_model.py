@@ -1,4 +1,5 @@
 import os
+import random
 from typing import Dict, Optional, Union
 
 import fire
@@ -53,10 +54,16 @@ def train_transfer_model(
     validate_graph_data_source(graph_data_source)
     case = get_case(**conf_blob)
 
+    if seed not in {0,1,2}:
+        src_seed = random.choice([0,1,2])
+    else:
+        src_seed = seed
+
+
     src_checkpoint_file = os.path.join(
         checkpoint_folder,
         get_indomain_checkpoint_filename(
-            **conf_blob, case=case, dataset_name=src_dataset_name, seed=seed
+            **conf_blob, case=case, dataset_name=src_dataset_name, seed=src_seed
         ),
     )
 
@@ -82,7 +89,12 @@ def train_transfer_model(
         name=f'{tgt_checkpoint_file.split("/")[-1]}',
     )
     wandb.config.update(conf_blob)
+    wandb.config.src_dataset = src_dataset_name
+    wandb.config.tgt_dataset = tgt_dataset_name
+    wandb.config.fewshot = fewshot
+    wandb.config.seed = seed
     wandb.config.case = case
+    wandb.config.src_seed = src_seed
 
     #######################################
     # LOAD DATA                           #
