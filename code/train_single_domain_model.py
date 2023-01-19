@@ -27,6 +27,7 @@ def train_model_in_domain(
     graph_data_source: Optional[str],
     graph_connection_type: str,
     lr: float,
+    fewshot: int,
     seed: int,
     batch_size: int,
     grad_accumulation_steps: int,
@@ -49,7 +50,7 @@ def train_model_in_domain(
     checkpoint_file = os.path.join(
         checkpoint_folder,
         get_indomain_checkpoint_filename(
-            **conf_blob, case=case, dataset_name=dataset_name, seed=seed
+            **conf_blob, case=case, dataset_name=dataset_name, seed=seed, fewshot=fewshot,
         ),
     )
 
@@ -96,6 +97,7 @@ def train_model_in_domain(
         graph_data_source,
         max_seq_len,
         batch_size,
+        fewshot=fewshot,
     )
 
     # this speeds up VSCode debugging a _lot_, and the variable is no longer needed.
@@ -206,7 +208,11 @@ def train_model_in_domain(
         # not getting train df, bc it will be shuffled and therefore useless
         p_train, r_train, f1_train, _ = eval_model_add_context(
             model=model,
-            data=train_data,
+            data=[
+                data
+                for (i, data) in enumerate(train_data)
+                if i in train_loader.dataset.sampled_indices
+            ],
             dataloader=train_loader,
             tokenizer=tokenizer,
             device=device,
@@ -270,6 +276,7 @@ def train_model_in_domain(
 def train_model_indomain_wrapper(
     dataset: str,
     seed: int,
+    fewshot: int,
     experiment_config: str,
     gpu: Optional[int] = 0,
 ):
@@ -285,6 +292,7 @@ def train_model_indomain_wrapper(
         device=device,
         seed=seed,
         conf_blob=configuration,
+        fewshot=fewshot,
         **configuration,
     )
 

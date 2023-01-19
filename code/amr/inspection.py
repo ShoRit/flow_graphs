@@ -45,3 +45,44 @@ def get_type_paths_for_relation(graph_data, amr_id2rel):
             path_edge_types = get_path_edge_types(shortest_path, graph_data, amr_id2rel)
             type_paths.append(path_edge_types)
     return type_paths
+
+
+def kl_divergence(src_distro_counter, tgt_distro_counter):
+    src_norm = sum(src_distro_counter.values())
+    tgt_norm = sum(tgt_distro_counter.values())
+
+    src_smoothing_factor = len(
+        [path for path in tgt_distro_counter if path not in src_distro_counter]
+    )
+    src_norm += src_smoothing_factor
+
+    tgt_smoothing_factor = len(
+        [path for path in src_distro_counter if path not in tgt_distro_counter]
+    )
+    tgt_norm += tgt_smoothing_factor
+
+    all_keys = set(src_distro_counter.keys())  # .union(set(tgt_distro_counter.keys()))
+
+    divergence = 0
+    for key in all_keys:
+        p_x = src_distro_counter.get(key, 1) / src_norm
+        q_x = tgt_distro_counter.get(key, 1) / tgt_norm
+
+        if p_x == 0 or q_x == 0:
+            continue
+
+        divergence += p_x * np.log(p_x / q_x)
+
+    return divergence
+
+
+def gini_coefficient(distro_counter):
+    n = len(distro_counter)
+    mean = sum(distro_counter.values()) / n
+    rma_diff = 0
+    for key_i, count_i in distro_counter.items():
+        for key_j, count_j in distro_counter.items():
+            rma_diff += np.abs(count_i - count_j)
+
+    gini_coef = rma_diff / (2 * n**2 * mean)
+    return gini_coef

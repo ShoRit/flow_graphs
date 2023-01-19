@@ -63,8 +63,12 @@ def get_transfer_checkpoint_filename(
     )
 
 
-def get_indomain_checkpoint_filename(dataset_name, case, gnn, gnn_depth, seed, lr, **kwargs):
-    filename = f"indomain-{dataset_name}-{case}-{gnn}-depth_{gnn_depth}-seed_{seed}-lr_{lr}.pt"
+def get_indomain_checkpoint_filename(
+    dataset_name, case, gnn, gnn_depth, seed, lr, fewshot=None, **kwargs
+):
+
+    fewshot_string = f"-fewshot_{fewshot}" if fewshot is not None else ""
+    filename = f"indomain-{dataset_name}-{case}-{gnn}-depth_{gnn_depth}-seed_{seed}-lr_{lr}{fewshot_string}.pt"
     assert INDOMAIN_CHECKPOINT_RE.fullmatch(filename)
     return filename
 
