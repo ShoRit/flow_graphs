@@ -141,3 +141,4 @@ logs/
 results/
 figures/
 checkpoints_ypb/
+*.png
